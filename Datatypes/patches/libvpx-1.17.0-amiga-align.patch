@@ -1,0 +1,16 @@
+--- a/vpx_ports/mem.h
++++ b/vpx_ports/mem.h
+@@ -14,7 +14,12 @@
+ #include "vpx_config.h"
+ #include "vpx/vpx_integer.h"
+ 
+-#if defined(__GNUC__) || defined(__SUNPRO_C)
++#if defined(__GNUC__) && defined(__amigaos__)
++/* AmigaOS hunk objects align to at most 8 bytes; 68k code (no SIMD) needs
++   no more than that. */
++#define DECLARE_ALIGNED(n, typ, val) \
++  typ val __attribute__((aligned((n) > 8 ? 8 : (n))))
++#elif defined(__GNUC__) || defined(__SUNPRO_C)
+ #define DECLARE_ALIGNED(n, typ, val) typ val __attribute__((aligned(n)))
+ #elif defined(_MSC_VER)
+ #define DECLARE_ALIGNED(n, typ, val) __declspec(align(n)) typ val

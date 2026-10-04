@@ -14,3 +14,13 @@ libjpeg 9f
   file:   jpegsrc.v9f.tar.gz
   from:   https://www.ijg.org/files/jpegsrc.v9f.tar.gz
   sha256: 04705c110cb2469caa79fb71fba3d7bf834914706e9641a4589485c1f832565b
+
+libwebp 1.6.0
+  file:   libwebp-1.6.0.tar.gz
+  from:   https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.6.0.tar.gz
+  sha256: e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564
+
+libvpx 1.17.0
+  file:   libvpx-1.17.0.tar.gz
+  from:   https://github.com/webmproject/libvpx/archive/refs/tags/v1.17.0.tar.gz
+  sha256: 1020f184046187baa2985dbde38e0691f49c44088bca7a1842b0236c6081dc0a

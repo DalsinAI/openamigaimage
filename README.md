@@ -1,13 +1,14 @@
 # openamigaimage
 
 zlib, libpng and libjpeg for AmigaOS 3.x on 68k, built as static link libraries for
-GCC programs. Part of the [OpenAmiga](https://github.com/DalsinAI/openamiga)
+GCC programs, and the project's datatypes: `webp.datatype` and `webm.datatype`
+(see [Datatypes](Datatypes/README.md)). Part of the [OpenAmiga](https://github.com/DalsinAI/openamiga)
 ports, made for [OpenBrowser](https://github.com/DalsinAI/openamigabrowser),
 the WebKit browser for AmigaOS 3.2.
 
-**Status:** Working: all three build, and the smoke test's round trips pass on the bench.
+**Status:** Working: all three libraries build, and the smoke test's round trips pass on the bench. The WebP and WebM datatypes decode on the bench exactly as on a PC.
 
-This repository holds the Amiga build, not zlib, libpng, libjpeg itself: a build script,
+This repository holds the Amiga build, not zlib, libpng, libjpeg, libwebp, libvpx itself: a build script,
 a smoke test and the upstream licences.
 
 ## Upstream
@@ -17,6 +18,8 @@ a smoke test and the upstream licences.
 | zlib | 1.3.1 (Chromium's copy) | zlib licence (upstream/zlib/LICENSE) | https://zlib.net/ |
 | libpng | 1.6.58 | PNG Reference Library License v2 (upstream/libpng/LICENSE) | http://www.libpng.org/ |
 | libjpeg | 9f | IJG licence (upstream/libjpeg/README, "LEGAL ISSUES") | https://www.ijg.org/ |
+| libwebp | 1.6.0 | BSD 3-clause, with the WebM patent grant (upstream/libwebp/COPYING, PATENTS) | https://chromium.googlesource.com/webm/libwebp |
+| libvpx | 1.17.0 | BSD 3-clause, with the WebM patent grant (upstream/libvpx/LICENSE, PATENTS) | https://chromium.googlesource.com/webm/libvpx |
 
 The exact files and their SHA-256 sums are in [SOURCES](SOURCES). All credit
 for the library goes to its authors; see `upstream/` for their notices.
@@ -55,6 +58,18 @@ IMAGE_DONE
 
 It has not yet been run on real Amiga hardware.
 
+## Datatypes
+
+The `Datatypes` drawer holds the datatypes the project makes, so any datatypes
+program can open more formats. They are built by `Datatypes/build.sh`, apart
+from the libraries above:
+
+- `webp.datatype` (libwebp): WebP pictures, lossy, lossless and with alpha.
+- `webm.datatype` (libvpx): WebM video, VP8 and VP9, in 256 colours.
+
+Both decode on the bench exactly as their libraries do on a PC. Installing,
+building and the test results are in [Datatypes/README.md](Datatypes/README.md).
+
 ## Known issues
 
 - None known.
@@ -63,5 +78,5 @@ It has not yet been run on real Amiga hardware.
 
 Dalsin Limited's Amiga changes (the build script, patches, configuration
 headers and tests) are MIT, Copyright (c) 2026 Dalsin Limited: see
-[LICENSE](LICENSE). zlib, libpng, libjpeg keep their own licences, in
+[LICENSE](LICENSE). zlib, libpng, libjpeg, libwebp, libvpx keep their own licences, in
 [upstream/](upstream/); a patch to their source stays under that licence.

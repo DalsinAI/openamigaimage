@@ -1,0 +1,31 @@
+--- a/src/utils/random_utils.c
++++ b/src/utils/random_utils.c
+@@ -36,9 +36,25 @@
+   memcpy(rg->tab, kRandomTable, sizeof(rg->tab));
+   rg->index1 = 0;
+   rg->index2 = 31;
+-  rg->amp = (dithering < 0.0) ? 0
+-          : (dithering > 1.0) ? (1 << VP8_RANDOM_DITHER_FIX)
+-          : (uint32_t)((1 << VP8_RANDOM_DITHER_FIX) * dithering);
++  {
++    // AmigaOS 3.x datatypes: no floating point, so the code runs without an
++    // FPU and without the ROM math libraries. 'amp' is 'dithering' clamped
++    // to [0, 1] and scaled by 1 << VP8_RANDOM_DITHER_FIX, worked out from
++    // the IEEE single-precision bits.
++    union { float f; uint32_t u; } v;
++    int exponent;
++    v.f = dithering;
++    exponent = (int)((v.u >> 23) & 0xff) - 127;
++    if ((v.u >> 31) || !(v.u & 0x7fffffff)) {
++      rg->amp = 0;
++    } else if (exponent >= 0) {
++      rg->amp = 1 << VP8_RANDOM_DITHER_FIX;
++    } else {
++      const uint32_t mantissa = (v.u & 0x7fffff) | 0x800000;
++      const int shift = 23 - VP8_RANDOM_DITHER_FIX - exponent;
++      rg->amp = (shift >= 32) ? 0 : (mantissa >> shift);
++    }
++  }
+ }
+ 
+ //------------------------------------------------------------------------------
