@@ -86,10 +86,11 @@ mkdir -p "$WORK/libvpx-build"
     --disable-webm-io --disable-libyuv --enable-static --disable-shared --disable-postproc \
     --disable-vp9-postproc --disable-internal-stats --disable-pic --size-limit=8192x8192 > configure.log 2>&1 \
     && make -j"${JOBS:-2}" libvpx.a > build.log 2>&1) || { echo "libvpx build failed (see $WORK/libvpx-build)"; exit 1; }
-XFLAGS="-I$HERE/common -I$HERE/webm -I$V -I$WORK/libvpx-build" compile "$HERE" "$WORK/obj-webm" \
-    common/dtstart.c common/dtlib.c common/dtstack.c webm/webm_demux.c webm/webmclass.c
+XFLAGS="-I$HERE/common -I$HERE/include -I$HERE/webm -I$V -I$WORK/libvpx-build" compile "$HERE" "$WORK/obj-webm" \
+    common/dtstart.c common/dtlib.c common/dtstack.c common/dtservice.c webm/webm_demux.c webm/webmclass.c
 $CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/webm.datatype" \
     "$WORK"/obj-webm/common_dtstart.o "$WORK"/obj-webm/common_dtlib.o "$WORK"/obj-webm/common_dtstack.o \
+    "$WORK"/obj-webm/common_dtservice.o \
     "$WORK"/obj-webm/webm_webm_demux.o "$WORK"/obj-webm/webm_webmclass.o "$WORK/libvpx-build/libvpx.a" -lamiga \
     -Wl,-Map="$WORK/webm.datatype.map"
 echo "webm.datatype: $(wc -c < "$OUT/Classes/DataTypes/webm.datatype") bytes"

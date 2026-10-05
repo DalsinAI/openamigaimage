@@ -18,7 +18,7 @@ is not yet checked (see Tested).
 | `webp.datatype` | picture | libwebp 1.6.0 | Lossy, lossless and alpha WebP, through picture.datatype's 24-bit mode (32-bit with alpha). An animated WebP shows its first frame. |
 | `heif.datatype` | picture | the `media.decode/1` service | AVIF and HEIC/HEIF pictures (iPhone photos), decoded on the services card or a paired Cradle and sent back as 32-bit ARGB, scaled down to fit `ENV:OpenImage/MaxSide` (default 4096). A sequence shows its first picture. |
 | `opensound.datatype` | sound | the `media.decode/1` service | FLAC, Ogg (Vorbis, Opus), AAC/M4A, ALAC, WMA and MP3, sent back as 16-bit PCM at a rate Paula plays (`ENV:OpenImage/SoundRate`, default 28000 Hz: 44.1 kHz comes as 22.05 kHz). 16-bit stereo with sound.datatype V44 or newer, else 8-bit mono. |
-| `webm.datatype` | animation | libvpx 1.17.0 | WebM video, VP8 or VP9, decoded frame by frame as the animation plays. Frames are shown in 256 colours (a 6x6x6 colour cube with ordered dithering), so they play on any screen. No sound yet. |
+| `webm.datatype` | animation | libvpx 1.17.0 | WebM video, VP8 or VP9, decoded frame by frame as the animation plays. Frames are shown in 256 colours (a 6x6x6 colour cube with ordered dithering), so they play on any screen. Sound through `media.decode/1` when a card or Cradle offers it. |
 
 OpenBrowser decodes the pictures in web pages through datatypes, so with
 `webp.datatype` installed it shows WebP pictures too.
@@ -131,8 +131,8 @@ are not yet checked.
   sample length sound.datatype V44+ expects for 16-bit samples (frames are
   given), and that it frees the sample with FreeVec(). The Ogg and WMA
   descriptors also match Theora and WMV video, which it refuses.
-- `webm.datatype`: no sound (WebM's Vorbis and Opus need decoders of their
-  own); 256 colours only; VP9 decoded in software is slow on a real 68k;
+- `webm.datatype`: sound (Vorbis or Opus) only through a services card or a
+  paired Cradle, as 8-bit mono, for files up to 64 MB; 256 colours only; VP9 decoded in software is slow on a real 68k;
   files over 4 GB and laced video blocks are not supported.
 
 ## Licence

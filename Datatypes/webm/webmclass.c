@@ -4,7 +4,10 @@
  * libvpx decodes it; each frame is shown in 256 colours (a 6x6x6 colour
  * cube and a grey ramp, with ordered dithering), so it plays on any screen.
  * Frames are decoded on demand; going back, or skipping ahead past a key
- * frame, starts again from the nearest key frame. Sound is not played yet.
+ * frame, starts again from the nearest key frame. The sound (Vorbis or
+ * Opus) comes from the media.decode/1 service on the services card or a
+ * paired Cradle, as 8-bit mono handed out with each frame; without one the
+ * video plays silent.
  *
  * MIT, Copyright (c) 2026 Dalsin Limited. libvpx is the WebM Project's,
  * under its BSD licence (upstream/libvpx/LICENSE).
@@ -29,6 +32,7 @@
 #include <string.h>
 
 #include "dtlib.h"
+#include "dtservice.h"
 #include "webm_demux.h"
 #include "webm_dither.h"
 #include "vpx/vpx_decoder.h"
@@ -42,6 +46,15 @@ static const char version[] __attribute__((used)) = "$VER: webm.datatype 47.1 (4
 
 const char dt_superclass[] = "animation.datatype";
 const UWORD dt_superversion = 40;
+
+/* media.decode/1 (openamigaservice docs/MEDIA_DECODE.md) */
+#define MD_PROBE  1
+#define MD_DECODE 2
+#define MD_KIND_SOUND 3
+/* Files larger than this are not sent for their sound. */
+#define SOUND_FILE_MAX (64UL * 1024 * 1024)
+/* The PAL colour clock, for periods. */
+#define PAL_CLOCK 3546895UL
 
 /* libvpx decodes on a stack of its own; callers may have only 4 KB. */
 #define DECODE_STACK (96 * 1024)
@@ -57,6 +70,9 @@ typedef struct {
     UBYTE *frameData;
     ULONG frameDataSize;
     struct BitMap *keyFrame;
+    BYTE *sound;                   /* 8-bit mono for the whole clip, or NULL */
+    ULONG soundLength;             /* samples in sound */
+    ULONG soundPerFrame;           /* samples handed out with each frame */
 } WebMData;
 
 ULONG dt_instsize = sizeof(WebMData);
@@ -219,14 +235,63 @@ static void freeData(WebMData *d)
         WaitBlit();
         FreeBitMap(d->keyFrame);
     }
+    if (d->sound)
+        FreeVec(d->sound);
+    d->sound = NULL;
     d->chunky = d->frameData = NULL;
     d->keyFrame = NULL;
+}
+
+static ULONG get32(const UBYTE *p)
+{
+    return (ULONG)p[0] << 24 | (ULONG)p[1] << 16 | (ULONG)p[2] << 8 | p[3];
+}
+
+/* The clip's sound from media.decode/1, as 8-bit mono at no more than
+ * 28 kHz; returns the rate, or 0 (silent) when no service has it. */
+static ULONG loadSound(WebMData *d, ULONG size)
+{
+    struct dt_service svc;
+    struct OSBuffer buf[4];
+    ULONG extra[4] = { 1, 28000, 0, 0 }, frames, rate = 0, got = 0, i;
+    UBYTE info[24], *file, *pcm = NULL;
+
+    if (size > SOUND_FILE_MAX || !(file = AllocVec(size, MEMF_ANY)))
+        return 0;
+    if (readAt((void *)d->file, 0, file, size) != (long)size || !dt_service_open(&svc, "media.decode/1")) {
+        FreeVec(file);
+        return 0;
+    }
+    memset(buf, 0, sizeof buf);
+    buf[0].ob_Data = file;
+    buf[0].ob_Length = size;
+    buf[1].ob_Data = info;
+    buf[1].ob_Length = sizeof info;
+    if (dt_service_call(&svc, MD_PROBE, 0, 2, buf, extra, NULL, NULL) == OSERR_OK && get32(info) == MD_KIND_SOUND
+        && (frames = get32(info + 12)) && frames < 0x40000000UL && get32(info + 20) == 1
+        && (pcm = AllocVec(frames * 2, MEMF_ANY))) {
+        buf[1].ob_Data = pcm;
+        buf[1].ob_Length = frames * 2;
+        if (dt_service_call(&svc, MD_DECODE, 0, 2, buf, extra, &got, NULL) == OSERR_OK && got) {
+            for (i = 0; i < got; i++)                 /* the high byte of each 16-bit sample */
+                pcm[i] = pcm[i * 2];
+            d->sound = (BYTE *)pcm;
+            d->soundLength = got;
+            rate = get32(info + 16);
+            pcm = NULL;
+        }
+    }
+    if (pcm)
+        FreeVec(pcm);
+    dt_service_close(&svc);
+    FreeVec(file);
+    return rate;
 }
 
 static BOOL loadWebM(Class *cl, Object *o)
 {
     WebMData *d = INST_DATA(cl, o);
-    ULONG sourceType = DTST_FILE, fps, size;
+    ULONG sourceType = DTST_FILE, fps, size, rate;
     STRPTR name = NULL;
     BPTR file = 0;
     int rc;
@@ -268,6 +333,11 @@ static BOOL loadWebM(Class *cl, Object *o)
         fps = 25;
     if (!fps)
         fps = 1;
+
+    if ((rate = loadSound(d, size)) != 0) {
+        d->soundPerFrame = rate / fps;
+        SetDTAttrs(o, NULL, NULL, ADTA_Period, PAL_CLOCK / rate, ADTA_Volume, 64, ADTA_Cycles, 1, TAG_DONE);
+    }
 
     setPalette(o);
     SetDTAttrs(o, NULL, NULL,
@@ -321,6 +391,13 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
         alf->alf_CMap = NULL;
         alf->alf_Sample = NULL;
         alf->alf_SampleLength = 0;
+        if (d->sound && d->soundPerFrame && index * d->soundPerFrame < d->soundLength) {
+            ULONG at = index * d->soundPerFrame, n = d->soundPerFrame;
+            if (at + n > d->soundLength)
+                n = d->soundLength - at;
+            alf->alf_Sample = d->sound + at;   /* ours: freed with the object */
+            alf->alf_SampleLength = n;
+        }
         alf->alf_UserData = bm;
         return bm ? 1 : 0;
     }
