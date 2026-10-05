@@ -1,5 +1,5 @@
 #!/bin/sh
-# openamigaimage datatypes: webp, webm and heif.datatype for AmigaOS
+# openamigaimage datatypes: webp, webm, heif and opensound.datatype for AmigaOS
 # 3.x, built with the os32-gcc16 compiler (bebbo's amiga-gcc, GCC 16.2,
 # libnix). The datatypes run on any 68020 or better, with or without an FPU.
 # MIT, Copyright (c) 2026 Dalsin Limited. libwebp and libvpx keep their
@@ -117,3 +117,27 @@ for d in "AVIF:AVIF:avif" "AVIS:AVIF sequence:avis" "HEIC:HEIC:heic" "HEIX:HEIC 
         "\$VER: $file 47.1 (5.10.2026)" ANY ANY ANY ANY "'f'" "'t'" "'y'" "'p'" "'$b1'" "'$b2'" "'$b3'" "'$b4'"
     echo "Devs/DataTypes/$file: $(wc -c < "$OUT/Devs/DataTypes/$file") bytes"
 done
+
+# --- opensound.datatype -------------------------------------------------------
+# FLAC, Ogg (Vorbis, Opus), AAC/M4A, ALAC, WMA and MP3, decoded by the
+# media.decode/1 service on the services card or a paired Cradle.
+XFLAGS="-I$HERE/common -I$HERE/include" compile "$HERE" "$WORK/obj-opensound" \
+    common/dtstart.c common/dtlib.c common/dtservice.c opensound/soundclass.c
+$CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/opensound.datatype" \
+    "$WORK"/obj-opensound/common_dtstart.o "$WORK"/obj-opensound/common_dtlib.o \
+    "$WORK"/obj-opensound/common_dtservice.o "$WORK"/obj-opensound/opensound_soundclass.o -lamiga \
+    -Wl,-Map="$WORK/opensound.datatype.map"
+echo "opensound.datatype: $(wc -c < "$OUT/Classes/DataTypes/opensound.datatype") bytes"
+sounddesc() {    # FILE NAME ID MASK...
+    f=$1; n=$2; i=$3; shift 3
+    python3 "$HERE/common/mkdtdesc.py" "$OUT/Devs/DataTypes/$f" "$n" opensound soun "$i" "#?" \
+        "\$VER: $f 47.1 (5.10.2026)" "$@"
+    echo "Devs/DataTypes/$f: $(wc -c < "$OUT/Devs/DataTypes/$f") bytes"
+}
+sounddesc FLAC FLAC flac "'f'" "'L'" "'a'" "'C'"
+sounddesc Ogg "Ogg sound" ogg "'O'" "'g'" "'g'" "'S'"
+sounddesc M4A "MPEG-4 audio" m4a ANY ANY ANY ANY "'f'" "'t'" "'y'" "'p'" "'M'" "'4'" "'A'" "' '"
+sounddesc M4B "MPEG-4 audiobook" m4b ANY ANY ANY ANY "'f'" "'t'" "'y'" "'p'" "'M'" "'4'" "'B'" "' '"
+sounddesc WMA "Windows Media audio" wma 0x30 0x26 0xb2 0x75 0x8e 0x66 0xcf 0x11
+sounddesc MP3-ID3 "MP3 (ID3)" mp3 "'I'" "'D'" "'3'"
+sounddesc AAC "AAC (ADTS)" aac 0xff 0xf1

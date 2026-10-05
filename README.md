@@ -1,7 +1,7 @@
 # openamigaimage
 
 zlib, libpng and libjpeg for AmigaOS 3.x on 68k, built as static link libraries for
-GCC programs, and the project's datatypes: `webp.datatype`, `webm.datatype` and `heif.datatype`
+GCC programs, and the project's datatypes: `webp.datatype`, `webm.datatype`, `heif.datatype` and `opensound.datatype`
 (see [Datatypes](Datatypes/README.md)). Part of the [OpenAmiga](https://github.com/DalsinAI/openamiga)
 ports, made for [OpenBrowser](https://github.com/DalsinAI/openamigabrowser),
 the WebKit browser for AmigaOS 3.2.
@@ -68,6 +68,8 @@ from the libraries above:
 - `webm.datatype` (libvpx): WebM video, VP8 and VP9, in 256 colours.
 - `heif.datatype`: AVIF and HEIC pictures, decoded by a Cradle through the
   `media.decode/1` service (DalsinAI/openamigaservice).
+- `opensound.datatype`: FLAC, Ogg Vorbis, Opus, AAC, ALAC, WMA and MP3
+  sounds, decoded the same way.
 
 Both decode on the bench exactly as their libraries do on a PC. Installing,
 building and the test results are in [Datatypes/README.md](Datatypes/README.md).
