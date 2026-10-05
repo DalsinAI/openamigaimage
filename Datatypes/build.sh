@@ -144,6 +144,15 @@ picdesc DDS "DirectDraw surface" dds "#?" $(chars "DDS ")
 # shellcheck disable=SC2046
 picdesc JP2 "JPEG 2000" jp2 "#?" 0 0 0 0x0c $(chars "jP  ")
 picdesc J2K "JPEG 2000 codestream" j2k "#?" 0xff 0x4f 0xff 0x51
+# OpenRaster and Krita: a ZIP whose first entry is the mimetype; comics by name.
+# shellcheck disable=SC2046
+picdesc ORA OpenRaster ora "#?" $(chars "PK") 3 4 $(i=0; while [ $i -lt 26 ]; do printf 'ANY '; i=$((i+1)); done) \
+    $(chars "mimetypeimage/openraster")
+# shellcheck disable=SC2046
+picdesc KRA "Krita picture" kra "#?" $(chars "PK") 3 4 $(i=0; while [ $i -lt 26 ]; do printf 'ANY '; i=$((i+1)); done) \
+    $(chars "mimetypeapplication/x-krita")
+# shellcheck disable=SC2046
+picdesc CBZ "Comic book" cbz "#?.cbz" $(chars "PK") 3 4
 # Camera RAW is TIFF (or its own thing) inside: the name tells it, ahead of
 # the TIFF datatype.
 DT_PRIORITY=1 picdesc RAW "Camera RAW" raw \
