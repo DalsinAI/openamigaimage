@@ -1,5 +1,5 @@
 #!/bin/sh
-# openamigaimage datatypes: webp, webm, heif and opensound.datatype for AmigaOS
+# openamigaimage datatypes: webp, webm, heif, opensound and opendoc.datatype for AmigaOS
 # 3.x, built with the os32-gcc16 compiler (bebbo's amiga-gcc, GCC 16.2,
 # libnix). The datatypes run on any 68020 or better, with or without an FPU.
 # MIT, Copyright (c) 2026 Dalsin Limited. libwebp and libvpx keep their
@@ -142,3 +142,37 @@ sounddesc M4B "MPEG-4 audiobook" m4b ANY ANY ANY ANY "'f'" "'t'" "'y'" "'p'" "'M
 sounddesc WMA "Windows Media audio" wma 0x30 0x26 0xb2 0x75 0x8e 0x66 0xcf 0x11
 sounddesc MP3-ID3 "MP3 (ID3)" mp3 "'I'" "'D'" "'3'"
 sounddesc AAC "AAC (ADTS)" aac 0xff 0xf1
+
+# --- opendoc.datatype ---------------------------------------------------------
+# Office documents as pictures of their pages, laid out by LibreOffice through
+# the doc.render/1 service on the services card or a paired Cradle.
+XFLAGS="-I$HERE/common -I$HERE/include" compile "$HERE" "$WORK/obj-opendoc" \
+    common/dtstart.c common/dtlib.c common/dtservice.c opendoc/docclass.c
+$CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/opendoc.datatype" \
+    "$WORK"/obj-opendoc/common_dtstart.o "$WORK"/obj-opendoc/common_dtlib.o \
+    "$WORK"/obj-opendoc/common_dtservice.o "$WORK"/obj-opendoc/opendoc_docclass.o -lamiga \
+    -Wl,-Map="$WORK/opendoc.datatype.map"
+echo "opendoc.datatype: $(wc -c < "$OUT/Classes/DataTypes/opendoc.datatype") bytes"
+docdesc() {      # FILE NAME ID PATTERN MASK...
+    f=$1; n=$2; i=$3; pat=$4; shift 4
+    python3 "$HERE/common/mkdtdesc.py" "$OUT/Devs/DataTypes/$f" "$n" opendoc pict "$i" "$pat" \
+        "\$VER: $f 47.1 (5.10.2026)" "$@"
+    echo "Devs/DataTypes/$f: $(wc -c < "$OUT/Devs/DataTypes/$f") bytes"
+}
+chars() {        # each character of $1 as a quoted mask item
+    printf %s "$1" | sed "s/./'&' /g"
+}
+# Office Open XML files are ZIP files: the name tells them apart.
+docdesc DOCX "Word document" docx "#?.(docx|docm|dotx)" "'P'" "'K'" 3 4
+docdesc XLSX "Excel workbook" xlsx "#?.(xlsx|xlsm|xltx)" "'P'" "'K'" 3 4
+docdesc PPTX "PowerPoint presentation" pptx "#?.(pptx|pptm|ppsx|potx)" "'P'" "'K'" 3 4
+# OpenDocument: its first entry is the mimetype, stored.
+# shellcheck disable=SC2046
+docdesc ODF OpenDocument odf "#?" "'P'" "'K'" 3 4 $(i=0; while [ $i -lt 26 ]; do printf 'ANY '; i=$((i+1)); done) \
+    $(chars "mimetypeapplication/vnd.oasis.opendocument.")
+# Office 97-2003 files are OLE2 compound files: the name tells them apart.
+docdesc DOC "Word 97 document" doc "#?.(doc|dot)" 0xd0 0xcf 0x11 0xe0 0xa1 0xb1 0x1a 0xe1
+docdesc XLS "Excel 97 workbook" xls "#?.(xls|xlt)" 0xd0 0xcf 0x11 0xe0 0xa1 0xb1 0x1a 0xe1
+docdesc PPT "PowerPoint 97 presentation" ppt "#?.(ppt|pps|pot)" 0xd0 0xcf 0x11 0xe0 0xa1 0xb1 0x1a 0xe1
+docdesc RTF "Rich Text Format" rtf "#?" "'{'" "'\\'" "'r'" "'t'" "'f'"
+docdesc WPD WordPerfect wpd "#?" 0xff "'W'" "'P'" "'C'"

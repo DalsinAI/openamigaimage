@@ -1,7 +1,7 @@
 # openamigaimage
 
 zlib, libpng and libjpeg for AmigaOS 3.x on 68k, built as static link libraries for
-GCC programs, and the project's datatypes: `webp.datatype`, `webm.datatype`, `heif.datatype` and `opensound.datatype`
+GCC programs, and the project's datatypes: `webp.datatype`, `webm.datatype`, `heif.datatype`, `opensound.datatype` and `opendoc.datatype`
 (see [Datatypes](Datatypes/README.md)). Part of the [OpenAmiga](https://github.com/DalsinAI/openamiga)
 ports, made for [OpenBrowser](https://github.com/DalsinAI/openamigabrowser),
 the WebKit browser for AmigaOS 3.2.
@@ -70,6 +70,9 @@ from the libraries above:
   `media.decode/1` service (DalsinAI/openamigaservice).
 - `opensound.datatype`: FLAC, Ogg Vorbis, Opus, AAC, ALAC, WMA and MP3
   sounds, decoded the same way.
+- `opendoc.datatype`: office documents (DOCX, XLSX, PPTX, OpenDocument,
+  Office 97, RTF, WordPerfect) as their pages, laid out by LibreOffice on a
+  Cradle through `doc.render/1`.
 
 Both decode on the bench exactly as their libraries do on a PC. Installing,
 building and the test results are in [Datatypes/README.md](Datatypes/README.md).
