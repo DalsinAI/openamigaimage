@@ -6,7 +6,8 @@ layout datatypes.library reads: DTHD holds struct DataTypeHeader with its
 pointers stored as offsets from the start of the chunk, then the mask
 (WORDs, 0xFFFF matches any byte), the name, the base name and the pattern.
 
-usage: mkdtdesc.py OUT NAME BASENAME GROUP ID PATTERN VERSION MASK...
+usage: mkdtdesc.py OUT NAME BASENAME GROUP ID PATTERN VERSION [MASK...]
+  With no MASK the PATTERN alone decides (text formats with no signature).
   MASK items: a character in quotes ('R'), a number (0x52) or ANY.
   DT_PRIORITY in the environment sets the priority (default 0); a higher
   one is tried first where two descriptors match the same file.
@@ -57,6 +58,6 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 9:
+    if len(sys.argv) < 8:
         sys.exit(__doc__)
     main(sys.argv)

@@ -92,3 +92,27 @@ ULONG dt_max_side(void)
         v = v * 10 + (buf[i] - '0');
     return v >= 16 ? v : 4096;
 }
+
+ULONG dt_name_hint(CONST_STRPTR name)
+{
+    CONST_STRPTR dot = NULL, p;
+    ULONG hint = 0;
+    int i;
+
+    if (!name)
+        return 0;
+    for (p = name; *p; p++)
+        if (*p == '.')
+            dot = p + 1;
+        else if (*p == '/' || *p == ':')
+            dot = NULL;
+    if (!dot || !*dot)
+        return 0;
+    for (i = 0; i < 4; i++) {
+        UBYTE c = dot[0] ? *dot++ : ' ';
+        if (c >= 'a' && c <= 'z')
+            c -= 'a' - 'A';
+        hint = hint << 8 | c;
+    }
+    return hint;                       /* longer ones cut to four: "markdown" -> 'MARK' */
+}

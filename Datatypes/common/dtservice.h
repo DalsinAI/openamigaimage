@@ -31,4 +31,8 @@ void dt_service_close(struct dt_service *s);
  * 4096. Bigger pictures come back scaled down to fit. */
 ULONG dt_max_side(void);
 
+/* The file name's extension as a service's hint: up to four letters in
+ * capitals, space-padded, big-endian ("photo.cr2" -> 'CR2 '); 0 when none. */
+ULONG dt_name_hint(CONST_STRPTR name);
+
 #endif

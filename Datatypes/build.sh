@@ -1,5 +1,5 @@
 #!/bin/sh
-# openamigaimage datatypes: webp, webm, heif, opensound, opendoc and openvideo.datatype for AmigaOS
+# openamigaimage datatypes: webp, webm, openpicture, opensound, opendoc and openvideo.datatype for AmigaOS
 # 3.x, built with the os32-gcc16 compiler (bebbo's amiga-gcc, GCC 16.2,
 # libnix). The datatypes run on any 68020 or better, with or without an FPU.
 # MIT, Copyright (c) 2026 Dalsin Limited. libwebp and libvpx keep their
@@ -100,24 +100,54 @@ python3 "$HERE/common/mkdtdesc.py" "$OUT/Devs/DataTypes/WebM" WebM webm anim web
     '$VER: WebM 47.1 (4.10.2026)' 0x1a 0x45 0xdf 0xa3
 echo "Devs/DataTypes/WebM: $(wc -c < "$OUT/Devs/DataTypes/WebM") bytes"
 
-# --- heif.datatype ------------------------------------------------------------
-# AVIF and HEIC, decoded by the media.decode/1 service (openamigaservice) on
-# the services card or a paired Cradle; no codec on the 68k yet.
-XFLAGS="-I$HERE/common -I$HERE/include" compile "$HERE" "$WORK/obj-heif" \
-    common/dtstart.c common/dtlib.c common/dtservice.c heif/heifclass.c
-$CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/heif.datatype" \
-    "$WORK"/obj-heif/common_dtstart.o "$WORK"/obj-heif/common_dtlib.o "$WORK"/obj-heif/common_dtservice.o \
-    "$WORK"/obj-heif/heif_heifclass.o -lamiga -Wl,-Map="$WORK/heif.datatype.map"
-echo "heif.datatype: $(wc -c < "$OUT/Classes/DataTypes/heif.datatype") bytes"
+# --- openpicture.datatype -----------------------------------------------------
+# AVIF, HEIC, JPEG XL, camera RAW, PSD, XCF, EXR, HDR, QOI, DDS and JPEG 2000,
+# decoded by the media.decode/1 service (openamigaservice) on the services
+# card or a paired Cradle; no codec on the 68k.
+XFLAGS="-I$HERE/common -I$HERE/include" compile "$HERE" "$WORK/obj-openpicture" \
+    common/dtstart.c common/dtlib.c common/dtservice.c openpicture/pictureclass.c
+$CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/openpicture.datatype" \
+    "$WORK"/obj-openpicture/common_dtstart.o "$WORK"/obj-openpicture/common_dtlib.o \
+    "$WORK"/obj-openpicture/common_dtservice.o "$WORK"/obj-openpicture/openpicture_pictureclass.o -lamiga \
+    -Wl,-Map="$WORK/openpicture.datatype.map"
+echo "openpicture.datatype: $(wc -c < "$OUT/Classes/DataTypes/openpicture.datatype") bytes"
+picdesc() {      # FILE NAME ID PATTERN MASK...
+    f=$1; n=$2; i=$3; pat=$4; shift 4
+    python3 "$HERE/common/mkdtdesc.py" "$OUT/Devs/DataTypes/$f" "$n" openpicture pict "$i" "$pat" \
+        "\$VER: $f 47.1 (5.10.2026)" "$@"
+    echo "Devs/DataTypes/$f: $(wc -c < "$OUT/Devs/DataTypes/$f") bytes"
+}
+chars() {        # each byte of $1 as a mask item, in hex (spaces and all)
+    printf %s "$1" | od -An -v -tx1 | sed 's/[0-9a-f][0-9a-f]/0x&/g'
+}
 # An ISO BMFF ftyp box (any size) with the brand: one descriptor per brand.
+# shellcheck disable=SC2046
 for d in "AVIF:AVIF:avif" "AVIS:AVIF sequence:avis" "HEIC:HEIC:heic" "HEIX:HEIC (heix):heix" "HEIF:HEIF:mif1"; do
     file=${d%%:*}; rest=${d#*:}; title=${rest%%:*}; brand=${rest#*:}
-    b1=$(printf %s "$brand" | cut -c1); b2=$(printf %s "$brand" | cut -c2)
-    b3=$(printf %s "$brand" | cut -c3); b4=$(printf %s "$brand" | cut -c4)
-    python3 "$HERE/common/mkdtdesc.py" "$OUT/Devs/DataTypes/$file" "$title" heif pict "$brand" "#?" \
-        "\$VER: $file 47.1 (5.10.2026)" ANY ANY ANY ANY "'f'" "'t'" "'y'" "'p'" "'$b1'" "'$b2'" "'$b3'" "'$b4'"
-    echo "Devs/DataTypes/$file: $(wc -c < "$OUT/Devs/DataTypes/$file") bytes"
+    picdesc "$file" "$title" "$brand" "#?" ANY ANY ANY ANY $(chars "ftyp$brand")
 done
+# shellcheck disable=SC2046
+picdesc JXL "JPEG XL" jxl "#?" 0xff 0x0a
+# shellcheck disable=SC2046
+picdesc JXL-ISO "JPEG XL (container)" jxl "#?" 0 0 0 0x0c $(chars "JXL ")
+picdesc EXR OpenEXR exr "#?" 0x76 0x2f 0x31 0x01
+# shellcheck disable=SC2046
+picdesc HDR "Radiance HDR" hdr "#?" $(chars "#?RADIANCE")
+# shellcheck disable=SC2046
+picdesc PSD "Photoshop" psd "#?" $(chars "8BPS")
+# shellcheck disable=SC2046
+picdesc XCF "GIMP picture" xcf "#?" $(chars "gimp xcf")
+# shellcheck disable=SC2046
+picdesc QOI QOI qoi "#?" $(chars "qoif")
+# shellcheck disable=SC2046
+picdesc DDS "DirectDraw surface" dds "#?" $(chars "DDS ")
+# shellcheck disable=SC2046
+picdesc JP2 "JPEG 2000" jp2 "#?" 0 0 0 0x0c $(chars "jP  ")
+picdesc J2K "JPEG 2000 codestream" j2k "#?" 0xff 0x4f 0xff 0x51
+# Camera RAW is TIFF (or its own thing) inside: the name tells it, ahead of
+# the TIFF datatype.
+DT_PRIORITY=1 picdesc RAW "Camera RAW" raw \
+    "#?.(cr2|cr3|crw|nef|nrw|arw|srf|sr2|dng|orf|rw2|raf|pef|srw|x3f|erf|kdc|dcr|mrw|3fr|iiq|rwl)"
 
 # --- opensound.datatype -------------------------------------------------------
 # FLAC, Ogg (Vorbis, Opus), AAC/M4A, ALAC, WMA and MP3, decoded by the
@@ -145,6 +175,21 @@ python3 "$HERE/common/mkdtdesc.py" "$OUT/Devs/DataTypes/WMA" "Windows Media audi
 echo "Devs/DataTypes/WMA: $(wc -c < "$OUT/Devs/DataTypes/WMA") bytes"
 sounddesc MP3-ID3 "MP3 (ID3)" mp3 "'I'" "'D'" "'3'"
 sounddesc AAC "AAC (ADTS)" aac 0xff 0xf1
+# Tunes the host plays: MIDI through FluidSynth, SID through sidplayfp.
+# shellcheck disable=SC2046
+sounddesc MIDI MIDI midi $(chars "MThd") 0 0 0 6
+# shellcheck disable=SC2046
+sounddesc PSID "C64 SID tune" psid $(chars "PSID")
+# shellcheck disable=SC2046
+sounddesc RSID "C64 SID tune (RSID)" rsid $(chars "RSID")
+# PC tracker modules through libopenmpt. ProTracker MODs and MED stay with
+# the Amiga's own players.
+# shellcheck disable=SC2046
+sounddesc XM "FastTracker module" xm $(chars "Extended Module: ")
+# shellcheck disable=SC2046
+sounddesc IT "Impulse Tracker module" it $(chars "IMPM")
+# shellcheck disable=SC2046
+sounddesc S3M "Scream Tracker module" s3m $(i=0; while [ $i -lt 44 ]; do printf 'ANY '; i=$((i+1)); done) $(chars "SCRM")
 
 # --- opendoc.datatype ---------------------------------------------------------
 # Office documents as pictures of their pages, laid out by LibreOffice through
@@ -162,9 +207,6 @@ docdesc() {      # FILE NAME ID PATTERN MASK...
         "\$VER: $f 47.1 (5.10.2026)" "$@"
     echo "Devs/DataTypes/$f: $(wc -c < "$OUT/Devs/DataTypes/$f") bytes"
 }
-chars() {        # each character of $1 as a quoted mask item
-    printf %s "$1" | sed "s/./'&' /g"
-}
 # Office Open XML files are ZIP files: the name tells them apart.
 docdesc DOCX "Word document" docx "#?.(docx|docm|dotx)" "'P'" "'K'" 3 4
 docdesc XLSX "Excel workbook" xlsx "#?.(xlsx|xlsm|xltx)" "'P'" "'K'" 3 4
@@ -179,6 +221,16 @@ docdesc XLS "Excel 97 workbook" xls "#?.(xls|xlt)" 0xd0 0xcf 0x11 0xe0 0xa1 0xb1
 docdesc PPT "PowerPoint 97 presentation" ppt "#?.(ppt|pps|pot)" 0xd0 0xcf 0x11 0xe0 0xa1 0xb1 0x1a 0xe1
 docdesc RTF "Rich Text Format" rtf "#?" "'{'" "'\\'" "'r'" "'t'" "'f'"
 docdesc WPD WordPerfect wpd "#?" 0xff "'W'" "'P'" "'C'"
+# shellcheck disable=SC2046
+docdesc PS PostScript ps "#?" $(chars "%!PS")
+docdesc EPS "EPS with preview" eps "#?" 0xc5 0xd0 0xd3 0xc6
+# EPUB is a ZIP whose first entry is its mimetype, as OpenDocument's.
+# shellcheck disable=SC2046
+docdesc EPUB "EPUB e-book" epub "#?" "'P'" "'K'" 3 4 $(i=0; while [ $i -lt 26 ]; do printf 'ANY '; i=$((i+1)); done) \
+    $(chars "mimetypeapplication/epub+zip")
+# Text with no signature: by name only.
+docdesc CSV "CSV table" csv "#?.(csv|tsv)"
+docdesc Markdown Markdown mdwn "#?.(md|markdown)"
 
 # --- openvideo.datatype -------------------------------------------------------
 # MP4, MOV, MKV, AVI, WMV, MPEG and FLV, decoded frame by frame by the

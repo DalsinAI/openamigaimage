@@ -1,8 +1,9 @@
 /*
- * opendoc.datatype: office documents (DOCX, XLSX, PPTX, ODT, ODS, ODP,
- * DOC, XLS, PPT, RTF, WordPerfect) for AmigaOS 3.x, shown as a picture of
- * their pages, one under the other, like a PDF viewer's continuous view.
- * The pages are laid out by LibreOffice through the doc.render/1 service
+ * opendoc.datatype: documents (DOCX, XLSX, PPTX, ODT, ODS, ODP, DOC, XLS,
+ * PPT, RTF, WordPerfect, PostScript, EPS, EPUB, Markdown, CSV) for AmigaOS
+ * 3.x, shown as a picture of their pages, one under the other, like a PDF
+ * viewer's continuous view. The pages are laid out by LibreOffice (or
+ * Ghostscript, or pandoc then LibreOffice) through the doc.render/1 service
  * (DalsinAI/openamigaservice docs/DOC_RENDER.md) on the services card or a
  * paired Cradle, at ENV:OpenImage/DocWidth pixels wide (default 800), the
  * first ENV:OpenImage/DocPages pages (default 8).
@@ -113,7 +114,8 @@ static BOOL loadDoc(Class *cl, Object *o)
 
     memset(buf, 0, sizeof buf);
     extra[0] = envNumber("OpenImage/DocWidth", 800, 100);
-    extra[1] = extra[2] = extra[3] = 0;
+    extra[1] = extra[3] = 0;
+    extra[2] = dt_name_hint(name);             /* CSV, Markdown: no signature */
     buf[0].ob_Data = data;
     buf[0].ob_Length = size;
     buf[1].ob_Data = info;

@@ -1,6 +1,7 @@
 /*
  * opensound.datatype: FLAC, Ogg Vorbis, Opus, AAC/M4A, ALAC, WMA and MP3
- * sounds for AmigaOS 3.x, a sound.datatype subclass. The sound is decoded
+ * sounds, MIDI, C64 SID tunes and XM/IT/S3M modules for AmigaOS 3.x, a
+ * sound.datatype subclass. MIDI and SID are played on the host into PCM. The sound is decoded
  * by the media.decode/1 service (DalsinAI/openamigaservice
  * docs/MEDIA_DECODE.md) on the services card or a paired Cradle, which
  * sends back 16-bit PCM at a rate Paula plays (at most

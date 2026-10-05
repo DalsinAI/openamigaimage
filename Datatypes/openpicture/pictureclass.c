@@ -1,14 +1,16 @@
 /*
- * heif.datatype: AVIF and HEIC/HEIF pictures for AmigaOS 3.x, a
- * picture.datatype (V43 mode) subclass. The pictures are decoded by the
- * media.decode/1 service (DalsinAI/openamigaservice docs/MEDIA_DECODE.md)
- * on the services card or a paired Cradle, which sends back 32-bit ARGB,
- * scaled down to fit ENV:OpenImage/MaxSide (default 4096). An AVIF or HEIF
- * sequence shows its first picture.
+ * openpicture.datatype: modern pictures for AmigaOS 3.x, a picture.datatype
+ * (V43 mode) subclass: AVIF, HEIC/HEIF, JPEG XL, camera RAW, PSD, XCF,
+ * OpenEXR, Radiance HDR, QOI, DDS and JPEG 2000. The pictures are decoded
+ * by the media.decode/1 service (DalsinAI/openamigaservice
+ * docs/MEDIA_DECODE.md) on the services card or a paired Cradle, which
+ * sends back 32-bit ARGB, scaled down to fit ENV:OpenImage/MaxSide (default
+ * 4096). The file's extension goes with it as a hint (camera RAW is TIFF
+ * inside). A sequence shows its first picture.
  *
  * With neither a card nor a Cradle the picture does not open: AVIF needs
- * AV1 and HEIC needs HEVC, too slow for a 68k at these sizes (an AVIF
- * fallback on the 68k comes later).
+ * AV1, HEIC needs HEVC and RAW needs demosaicing, too slow for a 68k at
+ * these sizes.
  *
  * MIT, Copyright (c) 2026 Dalsin Limited.
  */
@@ -28,11 +30,11 @@
 #include "dtlib.h"
 #include "dtservice.h"
 
-const char LibName[] = "heif.datatype";
-const char LibIdString[] = "heif.datatype 47.1 (5.10.2026) Dalsin Limited, decoded by media.decode/1";
+const char LibName[] = "openpicture.datatype";
+const char LibIdString[] = "openpicture.datatype 47.1 (5.10.2026) Dalsin Limited, decoded by media.decode/1";
 const UWORD LibVersion = 47;
 const UWORD LibRevision = 1;
-static const char version[] __attribute__((used)) = "$VER: heif.datatype 47.1 (5.10.2026)";
+static const char version[] __attribute__((used)) = "$VER: openpicture.datatype 47.1 (5.10.2026)";
 
 const char dt_superclass[] = "picture.datatype";
 const UWORD dt_superversion = 43;
@@ -41,7 +43,6 @@ ULONG dt_instsize = 0;
 /* media.decode/1 (docs/MEDIA_DECODE.md) */
 #define MD_PROBE  1
 #define MD_DECODE 2
-#define MD_FORMAT_AVIF 0x41564946UL
 #define MD_FLAG_ALPHA 1
 
 BOOL dt_init(void)
@@ -58,7 +59,7 @@ static ULONG get32(const UBYTE *p)
     return (ULONG)p[0] << 24 | (ULONG)p[1] << 16 | (ULONG)p[2] << 8 | p[3];
 }
 
-static BOOL loadHeif(Class *cl, Object *o)
+static BOOL loadPicture(Class *cl, Object *o)
 {
     struct BitMapHeader *bmh = NULL;
     struct dt_service svc;
@@ -83,7 +84,8 @@ static BOOL loadHeif(Class *cl, Object *o)
 
     memset(buf, 0, sizeof buf);
     extra[0] = extra[1] = dt_max_side();
-    extra[2] = extra[3] = 0;
+    extra[2] = dt_name_hint(name);
+    extra[3] = 0;
     buf[0].ob_Data = data;
     buf[0].ob_Length = size;
     buf[1].ob_Data = info;
@@ -101,7 +103,7 @@ static BOOL loadHeif(Class *cl, Object *o)
     bmh->bmh_Depth = (flags & MD_FLAG_ALPHA) ? 32 : 24;
     bmh->bmh_Masking = (flags & MD_FLAG_ALPHA) ? mskHasAlpha : mskNone;
     SetDTAttrs(o, NULL, NULL,
-        DTA_ObjName, (ULONG)(name ? FilePart(name) : (STRPTR)(get32(info + 4) == MD_FORMAT_AVIF ? "AVIF" : "HEIC")),
+        DTA_ObjName, (ULONG)(name ? FilePart(name) : (STRPTR)"Picture"),
         DTA_NominalHoriz, w,
         DTA_NominalVert, h,
         PDTA_SourceMode, PMODE_V43,
@@ -130,7 +132,7 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
     switch (msg->MethodID) {
     case OM_NEW: {
         Object *obj = (Object *)DoSuperMethodA(cl, o, msg);
-        if (obj && !loadHeif(cl, obj)) {
+        if (obj && !loadPicture(cl, obj)) {
             LONG err = IoErr();
             CoerceMethod(cl, obj, OM_DISPOSE);
             SetIoErr(err);

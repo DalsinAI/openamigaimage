@@ -1,7 +1,7 @@
 # openamigaimage
 
 zlib, libpng and libjpeg for AmigaOS 3.x on 68k, built as static link libraries for
-GCC programs, and the project's datatypes: `webp.datatype`, `webm.datatype`, `heif.datatype`, `opensound.datatype`, `opendoc.datatype` and `openvideo.datatype`
+GCC programs, and the project's datatypes: `webp.datatype`, `webm.datatype`, `openpicture.datatype`, `opensound.datatype`, `opendoc.datatype` and `openvideo.datatype`
 (see [Datatypes](Datatypes/README.md)). Part of the [OpenAmiga](https://github.com/DalsinAI/openamiga)
 ports, made for [OpenBrowser](https://github.com/DalsinAI/openamigabrowser),
 the WebKit browser for AmigaOS 3.2.
@@ -66,12 +66,14 @@ from the libraries above:
 
 - `webp.datatype` (libwebp): WebP pictures, lossy, lossless and with alpha.
 - `webm.datatype` (libvpx): WebM video, VP8 and VP9, in 256 colours.
-- `heif.datatype`: AVIF and HEIC pictures, decoded by a Cradle through the
+- `openpicture.datatype`: AVIF, HEIC, JPEG XL, camera RAW, PSD, XCF, EXR,
+  HDR, QOI, DDS and JPEG 2000 pictures, decoded by a Cradle through the
   `media.decode/1` service (DalsinAI/openamigaservice).
 - `opensound.datatype`: FLAC, Ogg Vorbis, Opus, AAC, ALAC, WMA and MP3
-  sounds, decoded the same way.
+  sounds, MIDI, SID tunes and XM, IT and S3M modules, decoded the same way.
 - `opendoc.datatype`: office documents (DOCX, XLSX, PPTX, OpenDocument,
-  Office 97, RTF, WordPerfect) as their pages, laid out by LibreOffice on a
+  Office 97, RTF, WordPerfect), PostScript, EPUB, Markdown and CSV as their
+  pages, laid out by LibreOffice on a
   Cradle through `doc.render/1`.
 - `openvideo.datatype`: MP4, MKV, AVI, WMV and MPEG video, sent a frame at a
   time by a Cradle through `media.decode/1`.
