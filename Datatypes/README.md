@@ -1,10 +1,11 @@
 # Datatypes
 
-`webp.datatype`, `webm.datatype`, `heif.datatype`, `opensound.datatype` and
-`opendoc.datatype` for AmigaOS 3.x, by Dalsin Limited. They let any
-datatypes program (MultiView, OpenBrowser, a picture viewer, a player) open
-WebP pictures, WebM video, AVIF and HEIC pictures, FLAC, Ogg Vorbis, Opus,
-AAC, ALAC, WMA and MP3 sounds, and office documents. They run on a 68020 or better, with or without an FPU. WebP and
+`webp.datatype`, `webm.datatype`, `heif.datatype`, `opensound.datatype`,
+`opendoc.datatype` and `openvideo.datatype` for AmigaOS 3.x, by Dalsin
+Limited. They let any datatypes program (MultiView, OpenBrowser, a picture
+viewer, a player) open WebP pictures, WebM video, AVIF and HEIC pictures,
+FLAC, Ogg Vorbis, Opus, AAC, ALAC, WMA and MP3 sounds, office documents,
+and MP4, MKV, AVI, WMV and MPEG video. They run on a 68020 or better, with or without an FPU. WebP and
 WebM need no other libraries; the others are decoded by a Cradle (below).
 
 **Status:** Working on the bench: both decode exactly as the same libraries
@@ -19,13 +20,14 @@ is not yet checked (see Tested).
 | `heif.datatype` | picture | the `media.decode/1` service | AVIF and HEIC/HEIF pictures (iPhone photos), decoded on the services card or a paired Cradle and sent back as 32-bit ARGB, scaled down to fit `ENV:OpenImage/MaxSide` (default 4096). A sequence shows its first picture. |
 | `opensound.datatype` | sound | the `media.decode/1` service | FLAC, Ogg (Vorbis, Opus), AAC/M4A, ALAC, WMA and MP3, sent back as 16-bit PCM at a rate Paula plays (`ENV:OpenImage/SoundRate`, default 28000 Hz: 44.1 kHz comes as 22.05 kHz). 16-bit stereo with sound.datatype V44 or newer, else 8-bit mono. |
 | `opendoc.datatype` | picture | the `doc.render/1` service | DOCX, XLSX, PPTX, OpenDocument, Word/Excel/PowerPoint 97, RTF and WordPerfect, laid out by LibreOffice on the Cradle and shown as their pages one under the other, `ENV:OpenImage/DocWidth` pixels wide (default 800), the first `ENV:OpenImage/DocPages` pages (default 8). |
+| `openvideo.datatype` | animation | the `media.decode/1` service | MP4/MOV, MKV, AVI, WMV, MPEG and FLV video (H.264, HEVC, AV1, VP9, MPEG-4, MPEG-1/2, WMV), kept open on the Cradle and sent a frame at a time in webm.datatype's 256 colours, scaled to fit `ENV:OpenImage/VideoWidth` x `VideoHeight` (default 640 x 480), with its sound as 8-bit mono. |
 | `webm.datatype` | animation | libvpx 1.17.0 | WebM video, VP8 or VP9, decoded frame by frame as the animation plays. Frames are shown in 256 colours (a 6x6x6 colour cube with ordered dithering), so they play on any screen. Sound through `media.decode/1` when a card or Cradle offers it. |
 
 OpenBrowser decodes the pictures in web pages through datatypes, so with
 `webp.datatype` installed it shows WebP pictures too.
 
-`heif.datatype`, `opensound.datatype` and `opendoc.datatype` decode nothing
-themselves. It sends the file to
+`heif.datatype`, `opensound.datatype`, `opendoc.datatype` and
+`openvideo.datatype` decode nothing themselves. It sends the file to
 `media.decode/1` through `openservice.device` (DalsinAI/openamigaservice):
 the host does the work on AmigaChrome and our Pi appliance, and a paired
 Cradle on the LAN does it for a real Amiga, which we expect to have
@@ -57,8 +59,11 @@ Copy the files from `out/` (after building) to the same places on the Amiga:
 | `Devs/DataTypes/FLAC`, `Ogg`, `M4A`, `M4B`, `WMA`, `MP3-ID3`, `AAC` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/opendoc.datatype` | `SYS:Classes/DataTypes/` |
 | `Devs/DataTypes/DOCX`, `XLSX`, `PPTX`, `ODF`, `DOC`, `XLS`, `PPT`, `RTF`, `WPD` | `DEVS:DataTypes/` |
+| `Classes/DataTypes/openvideo.datatype` | `SYS:Classes/DataTypes/` |
+| `Devs/DataTypes/MP4`, `MOV`, `MKV`, `AVI`, `WMV`, `MPEG-PS`, `MPEG-TS`, `FLV` | `DEVS:DataTypes/` |
 
-`heif.datatype`, `opensound.datatype` and `opendoc.datatype` also need `openservice.device` in `DEVS:` (OpenUp's
+`heif.datatype`, `opensound.datatype`, `opendoc.datatype` and
+`openvideo.datatype` also need `openservice.device` in `DEVS:` (OpenUp's
 OpenService part installs it) and a services card or a paired Cradle.
 
 Then reboot, or run `AddDataTypes DEVS:DataTypes/WebP DEVS:DataTypes/WebM`.
@@ -140,13 +145,18 @@ are not yet checked.
   first page's size. Office Open XML and Office 97 files are told apart by
   their names (`.docx`, `.xls`...), as they share a ZIP or OLE2 header with
   other files. No text view without a Cradle yet.
+- `openvideo.datatype`: not yet run on the bench. The whole file is read
+  into memory and sent once, so a video needs that much free RAM. Each
+  frame opens the service afresh, because animation.datatype loads frames
+  from its own process. MKV is chosen by its name and tried before
+  webm.datatype (both are EBML).
 - `webm.datatype`: sound (Vorbis or Opus) only through a services card or a
   paired Cradle, as 8-bit mono, for files up to 64 MB; 256 colours only; VP9 decoded in software is slow on a real 68k;
   files over 4 GB and laced video blocks are not supported.
 
 ## Licence
 
-The datatype code (`build.sh`, `common/`, `include/`, `webp/`, `webm/`, `heif/`, `opensound/`, `opendoc/`, `tests/`) is
+The datatype code (`build.sh`, `common/`, `include/`, `webp/`, `webm/`, `heif/`, `opensound/`, `opendoc/`, `openvideo/`, `tests/`) is
 MIT, Copyright (c) 2026 Dalsin Limited, as the rest of this repository.
 libwebp and libvpx keep their BSD licences and the WebM Project's patent
 grants (`../upstream/libwebp/`, `../upstream/libvpx/`); a patch to their

@@ -1,7 +1,7 @@
 # openamigaimage
 
 zlib, libpng and libjpeg for AmigaOS 3.x on 68k, built as static link libraries for
-GCC programs, and the project's datatypes: `webp.datatype`, `webm.datatype`, `heif.datatype`, `opensound.datatype` and `opendoc.datatype`
+GCC programs, and the project's datatypes: `webp.datatype`, `webm.datatype`, `heif.datatype`, `opensound.datatype`, `opendoc.datatype` and `openvideo.datatype`
 (see [Datatypes](Datatypes/README.md)). Part of the [OpenAmiga](https://github.com/DalsinAI/openamiga)
 ports, made for [OpenBrowser](https://github.com/DalsinAI/openamigabrowser),
 the WebKit browser for AmigaOS 3.2.
@@ -73,6 +73,8 @@ from the libraries above:
 - `opendoc.datatype`: office documents (DOCX, XLSX, PPTX, OpenDocument,
   Office 97, RTF, WordPerfect) as their pages, laid out by LibreOffice on a
   Cradle through `doc.render/1`.
+- `openvideo.datatype`: MP4, MKV, AVI, WMV and MPEG video, sent a frame at a
+  time by a Cradle through `media.decode/1`.
 
 Both decode on the bench exactly as their libraries do on a PC. Installing,
 building and the test results are in [Datatypes/README.md](Datatypes/README.md).

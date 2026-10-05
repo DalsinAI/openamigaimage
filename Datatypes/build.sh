@@ -1,5 +1,5 @@
 #!/bin/sh
-# openamigaimage datatypes: webp, webm, heif, opensound and opendoc.datatype for AmigaOS
+# openamigaimage datatypes: webp, webm, heif, opensound, opendoc and openvideo.datatype for AmigaOS
 # 3.x, built with the os32-gcc16 compiler (bebbo's amiga-gcc, GCC 16.2,
 # libnix). The datatypes run on any 68020 or better, with or without an FPU.
 # MIT, Copyright (c) 2026 Dalsin Limited. libwebp and libvpx keep their
@@ -139,7 +139,10 @@ sounddesc FLAC FLAC flac "'f'" "'L'" "'a'" "'C'"
 sounddesc Ogg "Ogg sound" ogg "'O'" "'g'" "'g'" "'S'"
 sounddesc M4A "MPEG-4 audio" m4a ANY ANY ANY ANY "'f'" "'t'" "'y'" "'p'" "'M'" "'4'" "'A'" "' '"
 sounddesc M4B "MPEG-4 audiobook" m4b ANY ANY ANY ANY "'f'" "'t'" "'y'" "'p'" "'M'" "'4'" "'B'" "' '"
-sounddesc WMA "Windows Media audio" wma 0x30 0x26 0xb2 0x75 0x8e 0x66 0xcf 0x11
+# ASF holds both: Windows Media audio by its name here, video in openvideo.
+python3 "$HERE/common/mkdtdesc.py" "$OUT/Devs/DataTypes/WMA" "Windows Media audio" opensound soun wma "#?.wma" \
+    '$VER: WMA 47.1 (5.10.2026)' 0x30 0x26 0xb2 0x75 0x8e 0x66 0xcf 0x11
+echo "Devs/DataTypes/WMA: $(wc -c < "$OUT/Devs/DataTypes/WMA") bytes"
 sounddesc MP3-ID3 "MP3 (ID3)" mp3 "'I'" "'D'" "'3'"
 sounddesc AAC "AAC (ADTS)" aac 0xff 0xf1
 
@@ -176,3 +179,29 @@ docdesc XLS "Excel 97 workbook" xls "#?.(xls|xlt)" 0xd0 0xcf 0x11 0xe0 0xa1 0xb1
 docdesc PPT "PowerPoint 97 presentation" ppt "#?.(ppt|pps|pot)" 0xd0 0xcf 0x11 0xe0 0xa1 0xb1 0x1a 0xe1
 docdesc RTF "Rich Text Format" rtf "#?" "'{'" "'\\'" "'r'" "'t'" "'f'"
 docdesc WPD WordPerfect wpd "#?" 0xff "'W'" "'P'" "'C'"
+
+# --- openvideo.datatype -------------------------------------------------------
+# MP4, MOV, MKV, AVI, WMV, MPEG and FLV, decoded frame by frame by the
+# media.decode/1 service on the services card or a paired Cradle.
+XFLAGS="-I$HERE/common -I$HERE/include" compile "$HERE" "$WORK/obj-openvideo" \
+    common/dtstart.c common/dtlib.c common/dtservice.c openvideo/videoclass.c
+$CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/openvideo.datatype" \
+    "$WORK"/obj-openvideo/common_dtstart.o "$WORK"/obj-openvideo/common_dtlib.o \
+    "$WORK"/obj-openvideo/common_dtservice.o "$WORK"/obj-openvideo/openvideo_videoclass.o -lamiga \
+    -Wl,-Map="$WORK/openvideo.datatype.map"
+echo "openvideo.datatype: $(wc -c < "$OUT/Classes/DataTypes/openvideo.datatype") bytes"
+videodesc() {    # FILE NAME ID PATTERN MASK...
+    f=$1; n=$2; i=$3; pat=$4; shift 4
+    python3 "$HERE/common/mkdtdesc.py" "$OUT/Devs/DataTypes/$f" "$n" openvideo anim "$i" "$pat" \
+        "\$VER: $f 47.1 (5.10.2026)" "$@"
+    echo "Devs/DataTypes/$f: $(wc -c < "$OUT/Devs/DataTypes/$f") bytes"
+}
+videodesc MP4 "MPEG-4 video" mp4 "#?.(mp4|m4v|mov|3gp|3g2)" ANY ANY ANY ANY "'f'" "'t'" "'y'" "'p'"
+videodesc MOV "QuickTime movie" mov "#?.mov" ANY ANY ANY ANY "'m'" "'o'" "'o'" "'v'"
+# MKV shares WebM's EBML header: by name, and tried before webm.datatype.
+DT_PRIORITY=1 videodesc MKV "Matroska video" mkv "#?.mkv" 0x1a 0x45 0xdf 0xa3
+videodesc AVI "AVI video" avi "#?" "'R'" "'I'" "'F'" "'F'" ANY ANY ANY ANY "'A'" "'V'" "'I'" "' '"
+videodesc WMV "Windows Media video" wmv "#?.(wmv|asf)" 0x30 0x26 0xb2 0x75 0x8e 0x66 0xcf 0x11
+videodesc MPEG-PS "MPEG video" mpg "#?" 0x00 0x00 0x01 0xba
+videodesc MPEG-TS "MPEG transport stream" mts "#?.(ts|m2ts|mts)" 0x47
+videodesc FLV "Flash video" flv "#?" "'F'" "'L'" "'V'"
