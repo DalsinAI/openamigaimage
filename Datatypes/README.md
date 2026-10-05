@@ -1,9 +1,10 @@
 # Datatypes
 
-`webp.datatype` and `webm.datatype` for AmigaOS 3.x, by Dalsin Limited. They
-let any datatypes program (MultiView, OpenBrowser, a picture viewer) open
-WebP pictures and WebM video. They run on a 68020 or better, with or without
-an FPU, and need no other libraries.
+`webp.datatype`, `webm.datatype` and `heif.datatype` for AmigaOS 3.x, by
+Dalsin Limited. They let any datatypes program (MultiView, OpenBrowser, a
+picture viewer) open WebP pictures, WebM video, and AVIF and HEIC pictures.
+They run on a 68020 or better, with or without an FPU. WebP and WebM need no
+other libraries; AVIF and HEIC are decoded by a Cradle (below).
 
 **Status:** Working on the bench: both decode exactly as the same libraries
 do on a PC. Not yet run on real Amiga hardware; WebM playback inside MultiView
@@ -14,10 +15,19 @@ is not yet checked (see Tested).
 | Datatype | Group | Built on | What it shows |
 | --- | --- | --- | --- |
 | `webp.datatype` | picture | libwebp 1.6.0 | Lossy, lossless and alpha WebP, through picture.datatype's 24-bit mode (32-bit with alpha). An animated WebP shows its first frame. |
+| `heif.datatype` | picture | the `media.decode/1` service | AVIF and HEIC/HEIF pictures (iPhone photos), decoded on the services card or a paired Cradle and sent back as 32-bit ARGB, scaled down to fit `ENV:OpenImage/MaxSide` (default 4096). A sequence shows its first picture. |
 | `webm.datatype` | animation | libvpx 1.17.0 | WebM video, VP8 or VP9, decoded frame by frame as the animation plays. Frames are shown in 256 colours (a 6x6x6 colour cube with ordered dithering), so they play on any screen. No sound yet. |
 
 OpenBrowser decodes the pictures in web pages through datatypes, so with
 `webp.datatype` installed it shows WebP pictures too.
+
+`heif.datatype` decodes nothing itself. It sends the file to
+`media.decode/1` through `openservice.device` (DalsinAI/openamigaservice):
+the host does the work on AmigaChrome and our Pi appliance, and a paired
+Cradle on the LAN does it for a real Amiga, which we expect to have
+PiStorm-class networking. With neither, the picture does not open
+(`not implemented`); AV1 and HEVC are too slow on a 68k at photo sizes.
+The service is described in openamigaservice's `docs/MEDIA_DECODE.md`.
 
 `webm.datatype` reads the WebM container itself (`webm/webm_demux.c`) and
 decodes with libvpx. Once OpenMedia's `openmedia.library` exists
@@ -35,6 +45,11 @@ Copy the files from `out/` (after building) to the same places on the Amiga:
 | `Classes/DataTypes/webm.datatype` | `SYS:Classes/DataTypes/` |
 | `Devs/DataTypes/WebP` | `DEVS:DataTypes/` |
 | `Devs/DataTypes/WebM` | `DEVS:DataTypes/` |
+| `Classes/DataTypes/heif.datatype` | `SYS:Classes/DataTypes/` |
+| `Devs/DataTypes/AVIF`, `AVIS`, `HEIC`, `HEIX`, `HEIF` | `DEVS:DataTypes/` |
+
+`heif.datatype` also needs `openservice.device` in `DEVS:` (OpenUp's
+OpenService part installs it) and a services card or a paired Cradle.
 
 Then reboot, or run `AddDataTypes DEVS:DataTypes/WebP DEVS:DataTypes/WebM`.
 
@@ -105,13 +120,15 @@ are not yet checked.
 
 - picture.datatype 47.19 keeps the alpha of a picture's last pixel only when
   its depth is 32, so `webp.datatype` gives pictures with alpha a depth of 32.
+- `heif.datatype`: not yet run on the bench. Rotation and mirroring stored in
+  AVIF files are not applied yet (HEIC's are). No 68k decoder.
 - `webm.datatype`: no sound (WebM's Vorbis and Opus need decoders of their
   own); 256 colours only; VP9 decoded in software is slow on a real 68k;
   files over 4 GB and laced video blocks are not supported.
 
 ## Licence
 
-The datatype code (`build.sh`, `common/`, `webp/`, `webm/`, `tests/`) is
+The datatype code (`build.sh`, `common/`, `include/`, `webp/`, `webm/`, `heif/`, `tests/`) is
 MIT, Copyright (c) 2026 Dalsin Limited, as the rest of this repository.
 libwebp and libvpx keep their BSD licences and the WebM Project's patent
 grants (`../upstream/libwebp/`, `../upstream/libvpx/`); a patch to their

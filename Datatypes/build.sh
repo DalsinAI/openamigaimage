@@ -1,5 +1,5 @@
 #!/bin/sh
-# openamigaimage datatypes: webp.datatype and webm.datatype for AmigaOS
+# openamigaimage datatypes: webp, webm and heif.datatype for AmigaOS
 # 3.x, built with the os32-gcc16 compiler (bebbo's amiga-gcc, GCC 16.2,
 # libnix). The datatypes run on any 68020 or better, with or without an FPU.
 # MIT, Copyright (c) 2026 Dalsin Limited. libwebp and libvpx keep their
@@ -98,3 +98,22 @@ echo "webm.datatype: $(wc -c < "$OUT/Classes/DataTypes/webm.datatype") bytes"
 python3 "$HERE/common/mkdtdesc.py" "$OUT/Devs/DataTypes/WebM" WebM webm anim webm "#?" \
     '$VER: WebM 47.1 (4.10.2026)' 0x1a 0x45 0xdf 0xa3
 echo "Devs/DataTypes/WebM: $(wc -c < "$OUT/Devs/DataTypes/WebM") bytes"
+
+# --- heif.datatype ------------------------------------------------------------
+# AVIF and HEIC, decoded by the media.decode/1 service (openamigaservice) on
+# the services card or a paired Cradle; no codec on the 68k yet.
+XFLAGS="-I$HERE/common -I$HERE/include" compile "$HERE" "$WORK/obj-heif" \
+    common/dtstart.c common/dtlib.c common/dtservice.c heif/heifclass.c
+$CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/heif.datatype" \
+    "$WORK"/obj-heif/common_dtstart.o "$WORK"/obj-heif/common_dtlib.o "$WORK"/obj-heif/common_dtservice.o \
+    "$WORK"/obj-heif/heif_heifclass.o -lamiga -Wl,-Map="$WORK/heif.datatype.map"
+echo "heif.datatype: $(wc -c < "$OUT/Classes/DataTypes/heif.datatype") bytes"
+# An ISO BMFF ftyp box (any size) with the brand: one descriptor per brand.
+for d in "AVIF:AVIF:avif" "AVIS:AVIF sequence:avis" "HEIC:HEIC:heic" "HEIX:HEIC (heix):heix" "HEIF:HEIF:mif1"; do
+    file=${d%%:*}; rest=${d#*:}; title=${rest%%:*}; brand=${rest#*:}
+    b1=$(printf %s "$brand" | cut -c1); b2=$(printf %s "$brand" | cut -c2)
+    b3=$(printf %s "$brand" | cut -c3); b4=$(printf %s "$brand" | cut -c4)
+    python3 "$HERE/common/mkdtdesc.py" "$OUT/Devs/DataTypes/$file" "$title" heif pict "$brand" "#?" \
+        "\$VER: $file 47.1 (5.10.2026)" ANY ANY ANY ANY "'f'" "'t'" "'y'" "'p'" "'$b1'" "'$b2'" "'$b3'" "'$b4'"
+    echo "Devs/DataTypes/$file: $(wc -c < "$OUT/Devs/DataTypes/$file") bytes"
+done
