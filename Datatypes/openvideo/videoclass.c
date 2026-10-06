@@ -69,6 +69,7 @@ typedef struct {
     struct BitMap *keyFrame;
     BYTE *sound;                   /* 8-bit mono for the whole video, or NULL */
     ULONG soundLength, soundPerFrame;
+    BOOL silent;                   /* sound is one frame of silence, handed out with every frame */
 } VideoData;
 
 ULONG dt_instsize = sizeof(VideoData);
@@ -327,6 +328,19 @@ static BOOL loadVideo(Class *cl, Object *o)
     if ((get32(info + 8) & MD_FLAG_SOUND) && (rate = fetchSound(d, &svc, data, size)) != 0) {
         d->soundPerFrame = rate * 1000 / (fps1000 ? fps1000 : 25000);
         SetDTAttrs(o, NULL, NULL, ADTA_Period, PAL_CLOCK / rate, ADTA_Volume, 64, ADTA_Cycles, 1, TAG_DONE);
+    } else {
+        /* A film with no sound. animation.datatype 47 makes its sound
+         * object whatever the film; trial: OpenImage/VideoSilence 1 gives
+         * it a frame of silence each frame, as a CDXL always has sound. */
+        ULONG on = 0;
+        envSet("OpenImage/VideoSilence", &on);
+        rate = 8000;
+        if (on && (d->soundPerFrame = rate * 1000 / (fps1000 ? fps1000 : 25000)) != 0
+            && (d->sound = AllocVec(d->soundPerFrame, MEMF_CHIP | MEMF_CLEAR)) != NULL) {
+            d->soundLength = d->soundPerFrame;
+            d->silent = TRUE;
+            SetDTAttrs(o, NULL, NULL, ADTA_Period, PAL_CLOCK / rate, ADTA_Volume, 64, ADTA_Cycles, 1, TAG_DONE);
+        }
     }
     if (!(d->keyFrame = fetchFrame(d, 0, NULL, &nomem))) {
         if (nomem)
@@ -420,7 +434,10 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
         alf->alf_CMap = NULL;
         alf->alf_Sample = NULL;
         alf->alf_SampleLength = 0;
-        if (d->sound && d->soundPerFrame && index * d->soundPerFrame < d->soundLength) {
+        if (d->silent) {
+            alf->alf_Sample = d->sound;
+            alf->alf_SampleLength = d->soundPerFrame;
+        } else if (d->sound && d->soundPerFrame && index * d->soundPerFrame < d->soundLength) {
             ULONG at = index * d->soundPerFrame, n = d->soundPerFrame;
             if (at + n > d->soundLength)
                 n = d->soundLength - at;
