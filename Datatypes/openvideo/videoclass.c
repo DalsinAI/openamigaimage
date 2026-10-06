@@ -30,6 +30,8 @@
 #include <proto/intuition.h>
 #include <proto/datatypes.h>
 #include <clib/alib_protos.h>
+#include <stdarg.h>
+#include <stdio.h>                 /* vsnprintf: dtlib.c's own */
 
 #include "dtlib.h"
 #include "dtservice.h"
@@ -95,6 +97,36 @@ static ULONG envNumber(const char *name, ULONG fallback, ULONG least)
     for (i = 0; i < n && buf[i] >= '0' && buf[i] <= '9'; i++)
         v = v * 10 + (buf[i] - '0');
     return v >= least ? v : fallback;
+}
+
+/* With ENV:OpenImage/VideoLog set, each method animation.datatype sends
+ * is added to T:openvideo.log, for finding out how it plays a video.
+ * Only from processes: the loader and player are, a plain task can't use DOS. */
+static void vlog(const char *fmt, ...)
+{
+    char buf[4], line[160];
+    struct Task *me = FindTask(NULL);
+    va_list ap;
+    BPTR f;
+    LONG n;
+
+    if (me->tc_Node.ln_Type != NT_PROCESS || GetVar((CONST_STRPTR)"OpenImage/VideoLog", (STRPTR)buf, sizeof buf, GVF_GLOBAL_ONLY) < 0)
+        return;
+    for (n = 0; me->tc_Node.ln_Name && me->tc_Node.ln_Name[n] && n < 40; n++)
+        line[n] = me->tc_Node.ln_Name[n];
+    line[n++] = ':';
+    line[n++] = ' ';
+    va_start(ap, fmt);
+    n += vsnprintf(line + n, sizeof line - n - 1, fmt, ap);
+    va_end(ap);
+    if (n > (LONG)sizeof line - 2)
+        n = sizeof line - 2;
+    line[n++] = '\n';
+    if ((f = Open((CONST_STRPTR)"T:openvideo.log", MODE_READWRITE)) != 0) {
+        Seek(f, 0, OFFSET_END);
+        Write(f, line, n);
+        Close(f);
+    }
 }
 
 /* The same 256 colours as webm.datatype: the 6x6x6 cube, then a grey ramp. */
@@ -309,6 +341,10 @@ out:
 
 ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
 {
+    if (msg->MethodID != ADTM_LOADFRAME && msg->MethodID != ADTM_UNLOADFRAME && msg->MethodID >= ADTM_Dummy)
+        vlog("method %lx", (unsigned long)msg->MethodID);
+    else if (msg->MethodID == DTM_TRIGGER)
+        vlog("trigger %lu", (unsigned long)((struct dtTrigger *)msg)->dtt_Function);
     switch (msg->MethodID) {
     case OM_NEW: {
         Object *obj = (Object *)DoSuperMethodA(cl, o, msg);
@@ -321,6 +357,7 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
         return (ULONG)obj;
     }
     case OM_DISPOSE: {
+        vlog("dispose");
         /* animation.datatype stops its loader and player in its own
          * OM_DISPOSE, and until then they may still be loading frames from
          * the host, playing the sound or showing the key frame: so the
@@ -355,10 +392,13 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
             alf->alf_SampleLength = n;
         }
         alf->alf_UserData = bm;
+        vlog("load ts=%lu frame=%lu bm=%lx", (unsigned long)alf->alf_TimeStamp, (unsigned long)index, (unsigned long)bm);
         return bm ? 1 : 0;
     }
     case ADTM_UNLOADFRAME: {
         struct adtFrame *alf = (struct adtFrame *)msg;
+        vlog("unload ts=%lu frame=%lu bm=%lx", (unsigned long)alf->alf_TimeStamp, (unsigned long)alf->alf_Frame,
+             (unsigned long)alf->alf_UserData);
         if (alf->alf_UserData) {
             WaitBlit();
             FreeBitMap((struct BitMap *)alf->alf_UserData);
