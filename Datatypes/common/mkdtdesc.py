@@ -11,6 +11,9 @@ usage: mkdtdesc.py OUT NAME BASENAME GROUP ID PATTERN VERSION [MASK...]
   MASK items: a character in quotes ('R'), a number (0x52) or ANY.
   DT_PRIORITY in the environment sets the priority (default 0); a higher
   one is tried first where two descriptors match the same file.
+  DT_TEXT=1 marks a text format (DTF_ASCII): datatypes.library only tries
+  text descriptors on a file that reads as text, so SVG, PostScript, RTF,
+  CSV and the like need it or the ascii datatype takes them.
 
 MIT, Copyright (c) 2026 Dalsin Limited.
 """
@@ -19,6 +22,7 @@ import struct
 import sys
 
 DTF_BINARY = 0x0000
+DTF_ASCII = 0x0001
 
 
 def chunk(cid, data):
@@ -45,7 +49,8 @@ def main(argv):
     base_off = name_off + len(name) + 1
     pattern_off = base_off + len(base) + 1
     dthd = struct.pack(">IIII4s4shhHH", name_off, base_off, pattern_off, mask_off if mask else 0,
-                       group.encode(), ident.encode(), len(mask), 0, DTF_BINARY,
+                       group.encode(), ident.encode(), len(mask), 0,
+                       DTF_ASCII if os.environ.get("DT_TEXT") == "1" else DTF_BINARY,
                        int(os.environ.get("DT_PRIORITY", "0")))
     dthd += b"".join(struct.pack(">H", w) for w in mask)
     dthd += name.encode() + b"\0" + base.encode() + b"\0" + pattern.encode() + b"\0"

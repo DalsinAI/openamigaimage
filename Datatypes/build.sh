@@ -132,7 +132,11 @@ picdesc JXL "JPEG XL" jxl "#?" 0xff 0x0a
 picdesc JXL-ISO "JPEG XL (container)" jxl "#?" 0 0 0 0x0c $(chars "JXL ")
 picdesc EXR OpenEXR exr "#?" 0x76 0x2f 0x31 0x01
 # shellcheck disable=SC2046
-picdesc HDR "Radiance HDR" hdr "#?" $(chars "#?RADIANCE")
+# Its header is text: a file whose first block reads as text needs the text
+# descriptor, one with pixels early on the binary one.
+DT_TEXT=1 picdesc HDR "Radiance HDR" hdr "#?" $(chars "#?RADIANCE")
+# shellcheck disable=SC2046
+picdesc HDR-Bin "Radiance HDR (binary)" hdr "#?" $(chars "#?RADIANCE")
 # shellcheck disable=SC2046
 picdesc PSD "Photoshop" psd "#?" $(chars "8BPS")
 # shellcheck disable=SC2046
@@ -153,6 +157,15 @@ picdesc KRA "Krita picture" kra "#?" $(chars "PK") 3 4 $(i=0; while [ $i -lt 26 
     $(chars "mimetypeapplication/x-krita")
 # shellcheck disable=SC2046
 picdesc CBZ "Comic book" cbz "#?.cbz" $(chars "PK") 3 4
+# SVG is drawn on the host at the picture's own size (media_svg.c); it is
+# text (DT_TEXT), so the name tells it, ahead of the ascii datatype.
+DT_TEXT=1 DT_PRIORITY=1 picdesc SVG "SVG drawing" svg "#?.(svg|svgz)"
+# Fonts as ImageMagick's sample sheet.
+picdesc TTF "TrueType font" ttf "#?.(ttf|ttc)"
+# shellcheck disable=SC2046
+picdesc OTF "OpenType font" otf "#?" $(chars "OTTO")
+# OpenType with TrueType outlines starts as a TrueType font does.
+picdesc OTF-TT "OpenType font (TrueType outlines)" otf "#?.otf" 0 1 0 0
 # Camera RAW is TIFF (or its own thing) inside: the name tells it, ahead of
 # the TIFF datatype.
 DT_PRIORITY=1 picdesc RAW "Camera RAW" raw \
@@ -228,18 +241,18 @@ docdesc ODF OpenDocument odf "#?" "'P'" "'K'" 3 4 $(i=0; while [ $i -lt 26 ]; do
 docdesc DOC "Word 97 document" doc "#?.(doc|dot)" 0xd0 0xcf 0x11 0xe0 0xa1 0xb1 0x1a 0xe1
 docdesc XLS "Excel 97 workbook" xls "#?.(xls|xlt)" 0xd0 0xcf 0x11 0xe0 0xa1 0xb1 0x1a 0xe1
 docdesc PPT "PowerPoint 97 presentation" ppt "#?.(ppt|pps|pot)" 0xd0 0xcf 0x11 0xe0 0xa1 0xb1 0x1a 0xe1
-docdesc RTF "Rich Text Format" rtf "#?" "'{'" "'\\'" "'r'" "'t'" "'f'"
+DT_TEXT=1 docdesc RTF "Rich Text Format" rtf "#?" "'{'" "'\\'" "'r'" "'t'" "'f'"
 docdesc WPD WordPerfect wpd "#?" 0xff "'W'" "'P'" "'C'"
 # shellcheck disable=SC2046
-docdesc PS PostScript ps "#?" $(chars "%!PS")
+DT_TEXT=1 docdesc PS PostScript ps "#?" $(chars "%!PS")
 docdesc EPS "EPS with preview" eps "#?" 0xc5 0xd0 0xd3 0xc6
 # EPUB is a ZIP whose first entry is its mimetype, as OpenDocument's.
 # shellcheck disable=SC2046
 docdesc EPUB "EPUB e-book" epub "#?" "'P'" "'K'" 3 4 $(i=0; while [ $i -lt 26 ]; do printf 'ANY '; i=$((i+1)); done) \
     $(chars "mimetypeapplication/epub+zip")
-# Text with no signature: by name only.
-docdesc CSV "CSV table" csv "#?.(csv|tsv)"
-docdesc Markdown Markdown mdwn "#?.(md|markdown)"
+# Text with no signature: by name only, ahead of the ascii datatype.
+DT_TEXT=1 DT_PRIORITY=1 docdesc CSV "CSV table" csv "#?.(csv|tsv)"
+DT_TEXT=1 DT_PRIORITY=1 docdesc Markdown Markdown mdwn "#?.(md|markdown)"
 
 # --- openvideo.datatype -------------------------------------------------------
 # MP4, MOV, MKV, AVI, WMV, MPEG and FLV, decoded frame by frame by the
@@ -257,6 +270,14 @@ videodesc() {    # FILE NAME ID PATTERN MASK...
         "\$VER: $f 47.1 (5.10.2026)" "$@"
     echo "Devs/DataTypes/$f: $(wc -c < "$OUT/Devs/DataTypes/$f") bytes"
 }
+# APNG, played by the host like a video without sound, ahead of the PNG
+# datatype: a PNG whose acTL chunk follows IHDR straight away (most
+# encoders), or any PNG named .apng (acTL may come later).
+# shellcheck disable=SC2046
+DT_PRIORITY=1 videodesc APNG "Animated PNG" apng "#?" 0x89 $(chars "PNG") 0x0d 0x0a 0x1a 0x0a \
+    $(i=0; while [ $i -lt 29 ]; do printf 'ANY '; i=$((i+1)); done) $(chars "acTL")
+# shellcheck disable=SC2046
+DT_PRIORITY=1 videodesc APNG-Name "Animated PNG (by name)" apng "#?.apng" 0x89 $(chars "PNG")
 videodesc MP4 "MPEG-4 video" mp4 "#?.(mp4|m4v|mov|3gp|3g2)" ANY ANY ANY ANY "'f'" "'t'" "'y'" "'p'"
 videodesc MOV "QuickTime movie" mov "#?.mov" ANY ANY ANY ANY "'m'" "'o'" "'o'" "'v'"
 # MKV shares WebM's EBML header: by name, and tried before webm.datatype.

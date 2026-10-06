@@ -52,6 +52,11 @@ const UWORD dt_superversion = 40;
 #define MD_KIND_ANIMATION 2
 #define MD_KIND_SOUND 3
 #define MD_FLAG_SOUND 2
+#define MD_FLAG_LOOP 4
+
+#ifndef DTA_Repeat
+#define DTA_Repeat (DTA_Dummy + 302)
+#endif
 
 /* The PAL colour clock, for periods. */
 #define PAL_CLOCK 3546895UL
@@ -128,8 +133,9 @@ static void setPalette(Object *o)
 }
 
 /* Frame index as a new 8-bit bitmap, from the host. Each call opens the
- * service itself: animation.datatype loads frames from its own process. */
-static struct BitMap *fetchFrame(VideoData *d, ULONG index)
+ * service itself: animation.datatype loads frames from its own process.
+ * NULL with *nomem set when the memory ran out. */
+static struct BitMap *fetchFrame(VideoData *d, ULONG index, BOOL *nomem)
 {
     struct dt_service svc;
     struct OSBuffer buf[4];
@@ -138,17 +144,22 @@ static struct BitMap *fetchFrame(VideoData *d, ULONG index)
     struct RastPort rp;
     UBYTE *chunky;
 
-    if (!(chunky = AllocVec(d->width * d->height, MEMF_ANY)))
+    *nomem = FALSE;
+    if (!(chunky = AllocVec(d->width * d->height, MEMF_ANY))) {
+        *nomem = TRUE;
         return NULL;
+    }
     if (dt_service_open(&svc, "media.decode/1")) {
         memset(buf, 0, sizeof buf);
         buf[1].ob_Data = chunky;
         buf[1].ob_Length = d->width * d->height;
-        if (dt_service_call(&svc, MD_VFRAME, d->handle, 2, buf, extra, NULL, NULL) == OSERR_OK
-            && (bm = AllocBitMap(d->width, d->height, 8, BMF_CLEAR, NULL))) {
-            InitRastPort(&rp);
-            rp.BitMap = bm;
-            WriteChunkyPixels(&rp, 0, 0, d->width - 1, d->height - 1, chunky, d->width);
+        if (dt_service_call(&svc, MD_VFRAME, d->handle, 2, buf, extra, NULL, NULL) == OSERR_OK) {
+            if ((bm = AllocBitMap(d->width, d->height, 8, BMF_CLEAR, NULL)) != NULL) {
+                InitRastPort(&rp);
+                rp.BitMap = bm;
+                WriteChunkyPixels(&rp, 0, 0, d->width - 1, d->height - 1, chunky, d->width);
+            } else
+                *nomem = TRUE;
         }
         dt_service_close(&svc);
     }
@@ -215,7 +226,7 @@ static BOOL loadVideo(Class *cl, Object *o)
     ULONG extra[4], size = 0, handle = 0, fps1000 = 0, fps, rate;
     UBYTE info[24], *data;
     STRPTR name = NULL;
-    BOOL ok = FALSE;
+    BOOL ok = FALSE, nomem;
     LONG err = DTERROR_INVALID_DATA;
 
     memset(d, 0, sizeof *d);
@@ -230,6 +241,13 @@ static BOOL loadVideo(Class *cl, Object *o)
     memset(buf, 0, sizeof buf);
     extra[0] = envNumber("OpenImage/VideoWidth", 640, 16);
     extra[1] = envNumber("OpenImage/VideoHeight", 480, 16);
+    /* Each frame is a planar bitmap in chip RAM, and animation.datatype
+     * keeps a few: ask for a smaller picture when chip RAM is short, so a
+     * third or fourth video still opens. */
+    while (extra[0] > 160 && AvailMem(MEMF_CHIP | MEMF_LARGEST) < 4 * extra[0] * extra[1]) {
+        extra[0] /= 2;
+        extra[1] /= 2;
+    }
     extra[2] = extra[3] = 0;
     buf[0].ob_Data = data;
     buf[0].ob_Length = size;
@@ -251,8 +269,11 @@ static BOOL loadVideo(Class *cl, Object *o)
         d->soundPerFrame = rate * 1000 / (fps1000 ? fps1000 : 25000);
         SetDTAttrs(o, NULL, NULL, ADTA_Period, PAL_CLOCK / rate, ADTA_Volume, 64, ADTA_Cycles, 1, TAG_DONE);
     }
-    if (!(d->keyFrame = fetchFrame(d, 0)))
+    if (!(d->keyFrame = fetchFrame(d, 0, &nomem))) {
+        if (nomem)
+            err = ERROR_NO_FREE_STORE;
         goto out;
+    }
 
     setPalette(o);
     SetDTAttrs(o, NULL, NULL,
@@ -265,6 +286,8 @@ static BOOL loadVideo(Class *cl, Object *o)
         ADTA_Frames, d->frames,
         ADTA_FramesPerSecond, fps,
         ADTA_KeyFrame, (ULONG)d->keyFrame,
+        /* an animated GIF or PNG that asks to play more than once */
+        DTA_Repeat, (get32(info + 8) & MD_FLAG_LOOP) ? TRUE : FALSE,
         TAG_DONE);
     ok = TRUE;
 out:
@@ -298,9 +321,12 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
         struct adtFrame *alf = (struct adtFrame *)msg;
         ULONG index = alf->alf_TimeStamp;
         struct BitMap *bm;
+        BOOL nomem;
         if (index >= d->frames)
             index = d->frames - 1;
-        bm = fetchFrame(d, index);
+        bm = fetchFrame(d, index, &nomem);
+        if (nomem)
+            SetIoErr(ERROR_NO_FREE_STORE);
         alf->alf_Frame = index;
         alf->alf_Duration = 1;
         alf->alf_BitMap = bm;
