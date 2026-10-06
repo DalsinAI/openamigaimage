@@ -153,6 +153,13 @@ picdesc KRA "Krita picture" kra "#?" $(chars "PK") 3 4 $(i=0; while [ $i -lt 26 
     $(chars "mimetypeapplication/x-krita")
 # shellcheck disable=SC2046
 picdesc CBZ "Comic book" cbz "#?.cbz" $(chars "PK") 3 4
+# SVG is drawn on the host at the picture's own size (media_svg.c); it is
+# text, so the name tells it, ahead of the text datatype.
+DT_PRIORITY=1 picdesc SVG "SVG drawing" svg "#?.(svg|svgz)"
+# Fonts as ImageMagick's sample sheet.
+picdesc TTF "TrueType font" ttf "#?.(ttf|ttc)"
+# shellcheck disable=SC2046
+picdesc OTF "OpenType font" otf "#?" $(chars "OTTO")
 # Camera RAW is TIFF (or its own thing) inside: the name tells it, ahead of
 # the TIFF datatype.
 DT_PRIORITY=1 picdesc RAW "Camera RAW" raw \
@@ -257,6 +264,14 @@ videodesc() {    # FILE NAME ID PATTERN MASK...
         "\$VER: $f 47.1 (5.10.2026)" "$@"
     echo "Devs/DataTypes/$f: $(wc -c < "$OUT/Devs/DataTypes/$f") bytes"
 }
+# APNG, played by the host like a video without sound, ahead of the PNG
+# datatype: a PNG whose acTL chunk follows IHDR straight away (most
+# encoders), or any PNG named .apng (acTL may come later).
+# shellcheck disable=SC2046
+DT_PRIORITY=1 videodesc APNG "Animated PNG" apng "#?" 0x89 $(chars "PNG") 0x0d 0x0a 0x1a 0x0a \
+    $(i=0; while [ $i -lt 29 ]; do printf 'ANY '; i=$((i+1)); done) $(chars "acTL")
+# shellcheck disable=SC2046
+DT_PRIORITY=1 videodesc APNG-Name "Animated PNG (by name)" apng "#?.apng" 0x89 $(chars "PNG")
 videodesc MP4 "MPEG-4 video" mp4 "#?.(mp4|m4v|mov|3gp|3g2)" ANY ANY ANY ANY "'f'" "'t'" "'y'" "'p'"
 videodesc MOV "QuickTime movie" mov "#?.mov" ANY ANY ANY ANY "'m'" "'o'" "'o'" "'v'"
 # MKV shares WebM's EBML header: by name, and tried before webm.datatype.
