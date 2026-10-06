@@ -19,10 +19,10 @@ is not yet checked (see Tested).
 | Datatype | Group | Built on | What it shows |
 | --- | --- | --- | --- |
 | `webp.datatype` | picture | libwebp 1.6.0 | Lossy, lossless and alpha WebP, through picture.datatype's 24-bit mode (32-bit with alpha). An animated WebP shows its first frame. |
-| `openpicture.datatype` | picture | the `media.decode/1` service | AVIF and HEIC/HEIF (iPhone photos), JPEG XL, camera RAW (Canon, Nikon, Sony, DNG and more), Photoshop PSD, GIMP XCF, OpenEXR, Radiance HDR, QOI, DDS, JPEG 2000, OpenRaster and Krita (their flattened picture) and comic books (CBZ, the first page), decoded on the services card or a paired Cradle and sent back as 32-bit ARGB, scaled down to fit `ENV:OpenImage/MaxSide` (default 4096). A sequence shows its first picture. |
+| `openpicture.datatype` | picture | the `media.decode/1` service | AVIF and HEIC/HEIF (iPhone photos), JPEG XL, camera RAW (Canon, Nikon, Sony, DNG and more), Photoshop PSD, GIMP XCF, OpenEXR, Radiance HDR, QOI, DDS, JPEG 2000, OpenRaster and Krita (their flattened picture), comic books (CBZ, the first page), SVG (drawn at its own size) and TrueType/OpenType fonts (a sample sheet), decoded on the services card or a paired Cradle and sent back as 32-bit ARGB, scaled down to fit `ENV:OpenImage/MaxSide` (default 4096). A sequence shows its first picture. |
 | `opensound.datatype` | sound | the `media.decode/1` service | FLAC, Ogg (Vorbis, Opus), AAC/M4A, ALAC, WMA and MP3; MIDI (played through FluidSynth on the Cradle), C64 SID tunes (the first three minutes, through sidplayfp) and XM, IT and S3M modules (libopenmpt), sent back as 16-bit PCM at a rate Paula plays (`ENV:OpenImage/SoundRate`, default 28000 Hz: 44.1 kHz comes as 22.05 kHz). 16-bit stereo with sound.datatype V44 or newer, else 8-bit mono. |
-| `opendoc.datatype` | picture | the `doc.render/1` service | DOCX, XLSX, PPTX, OpenDocument, Word/Excel/PowerPoint 97, RTF, WordPerfect, PostScript and EPS, EPUB e-books, Markdown and CSV, laid out by LibreOffice (Ghostscript for PostScript) on the Cradle and shown as their pages one under the other, `ENV:OpenImage/DocWidth` pixels wide (default 800), the first `ENV:OpenImage/DocPages` pages (default 8). |
-| `openvideo.datatype` | animation | the `media.decode/1` service | MP4/MOV, MKV, AVI, WMV, MPEG and FLV video (H.264, HEVC, AV1, VP9, MPEG-4, MPEG-1/2, WMV), kept open on the Cradle and sent a frame at a time in webm.datatype's 256 colours, scaled to fit `ENV:OpenImage/VideoWidth` x `VideoHeight` (default 640 x 480), with its sound as 8-bit mono. |
+| `opendoc.datatype` | picture | the `doc.render/1` service | DOCX, XLSX, PPTX, OpenDocument, Word/Excel/PowerPoint 97, RTF, WordPerfect, PostScript and EPS, EPUB e-books, Markdown and CSV, laid out by LibreOffice or Apache OpenOffice (Ghostscript for PostScript) on the Cradle and shown as their pages one under the other, `ENV:OpenImage/DocWidth` pixels wide (default 800), the first `ENV:OpenImage/DocPages` pages (default 8). |
+| `openvideo.datatype` | animation | the `media.decode/1` service | MP4/MOV, MKV, AVI, WMV, MPEG and FLV video, and animated PNG (H.264, HEVC, AV1, VP9, MPEG-4, MPEG-1/2, WMV), kept open on the Cradle and sent a frame at a time in webm.datatype's 256 colours, scaled to fit `ENV:OpenImage/VideoWidth` x `VideoHeight` (default 640 x 480), with its sound as 8-bit mono. |
 | `webm.datatype` | animation | libvpx 1.17.0 | WebM video, VP8 or VP9, decoded frame by frame as the animation plays. Frames are shown in 256 colours (a 6x6x6 colour cube with ordered dithering), so they play on any screen. Sound through `media.decode/1` when a card or Cradle offers it. |
 
 OpenBrowser decodes the pictures in web pages through datatypes, so with
@@ -56,13 +56,13 @@ Copy the files from `out/` (after building) to the same places on the Amiga:
 | `Devs/DataTypes/WebP` | `DEVS:DataTypes/` |
 | `Devs/DataTypes/WebM` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/openpicture.datatype` | `SYS:Classes/DataTypes/` |
-| `Devs/DataTypes/AVIF`, `AVIS`, `HEIC`, `HEIX`, `HEIF`, `JXL`, `JXL-ISO`, `RAW`, `PSD`, `XCF`, `EXR`, `HDR`, `QOI`, `DDS`, `JP2`, `J2K`, `ORA`, `KRA`, `CBZ` | `DEVS:DataTypes/` |
+| `Devs/DataTypes/AVIF`, `AVIS`, `HEIC`, `HEIX`, `HEIF`, `JXL`, `JXL-ISO`, `RAW`, `PSD`, `XCF`, `EXR`, `HDR`, `HDR-Bin`, `QOI`, `DDS`, `JP2`, `J2K`, `ORA`, `KRA`, `CBZ`, `SVG`, `TTF`, `OTF`, `OTF-TT` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/opensound.datatype` | `SYS:Classes/DataTypes/` |
 | `Devs/DataTypes/FLAC`, `Ogg`, `M4A`, `M4B`, `WMA`, `MP3-ID3`, `AAC`, `MIDI`, `PSID`, `RSID`, `XM`, `IT`, `S3M` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/opendoc.datatype` | `SYS:Classes/DataTypes/` |
 | `Devs/DataTypes/DOCX`, `XLSX`, `PPTX`, `ODF`, `DOC`, `XLS`, `PPT`, `RTF`, `WPD`, `PS`, `EPS`, `EPUB`, `CSV`, `Markdown` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/openvideo.datatype` | `SYS:Classes/DataTypes/` |
-| `Devs/DataTypes/MP4`, `MOV`, `MKV`, `AVI`, `WMV`, `MPEG-PS`, `MPEG-TS`, `FLV` | `DEVS:DataTypes/` |
+| `Devs/DataTypes/MP4`, `MOV`, `MKV`, `AVI`, `WMV`, `MPEG-PS`, `MPEG-TS`, `FLV`, `APNG`, `APNG-Name` | `DEVS:DataTypes/` |
 
 `openpicture.datatype`, `opensound.datatype`, `opendoc.datatype` and
 `openvideo.datatype` also need `openservice.device` in `DEVS:` (OpenUp's
@@ -140,8 +140,19 @@ are not yet checked.
 - `openpicture.datatype`: not yet run on the bench. Rotation and mirroring
   stored in AVIF files are not applied yet (HEIC's are), nor EXIF rotation.
   No 68k decoder. Camera RAW is chosen by its name, ahead of a TIFF
-  datatype. TGA, PCX, ICO and the other classic formats are left to the
-  Amiga's own datatypes, which work without a Cradle.
+  datatype, and SVG by its name, ahead of the text datatype. TGA, PCX, ICO
+  and the other classic formats are left to the Amiga's own datatypes, which
+  work without a Cradle (`media.decode/1` still reads ICO, for OpenBrowser's
+  site icons). An APNG is told by an acTL chunk straight after IHDR, or by
+  the name `.apng`; others show as a still PNG. An APNG's frames come
+  composited on black, without alpha (animation.datatype has none), at a
+  steady rate that keeps its uneven frame delays; it repeats when its
+  play count is not one. Animated WebP stays a still in `webp.datatype` until the
+  Cradle's FFmpeg decodes WebP animation. An OpenType font with TrueType
+  outlines is told by its `.otf` name.
+- Text formats (SVG, Radiance HDR's header, PostScript, RTF, CSV and
+  Markdown) have text descriptors (DTF_ASCII): datatypes.library only tries
+  those on a file that reads as text.
 - The ProTracker MOD and MED descriptors are left out on purpose: the
   Amiga plays those itself. Pictures in JPEG, PNG and GIF also stay with the
   system's datatypes; `media.decode/1` decodes them for OpenBrowser.
@@ -158,9 +169,13 @@ are not yet checked.
   into memory and sent once, so a video needs that much free RAM. Each
   frame opens the service afresh, because animation.datatype loads frames
   from its own process. MKV is chosen by its name and tried before
-  webm.datatype (both are EBML).
+  webm.datatype (both are EBML). Each frame is a planar bitmap in chip RAM:
+  when the largest free chip block holds fewer than four frames, the video
+  is asked for at half the size (down to 160 wide), and running out says
+  "not enough memory" rather than nothing.
 - `webm.datatype`: sound (Vorbis or Opus) only through a services card or a
-  paired Cradle, as 8-bit mono, for files up to 64 MB; 256 colours only; VP9 decoded in software is slow on a real 68k;
+  paired Cradle, as 8-bit mono, for files up to 64 MB; 256 colours only
+  (VP9 in 4:2:0, 4:4:4 or RGB; 8-bit only); VP9 decoded in software is slow on a real 68k;
   files over 4 GB and laced video blocks are not supported.
 
 ## Licence
