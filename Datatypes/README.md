@@ -94,7 +94,7 @@ How they are made:
   `AllocVec()`, so several programs can decode at once.
 - **AC090's native helpers.** `common/dtlib.c`'s `realloc` copies, and its
   `calloc` clears, through amigachrome-guest's helpers (`../achelpers/`,
-  `AC_HELPERS=1`, the default): host code on AmigaChrome, 68k code written
+  `AC_HELPERS=1`, or `auto`, the default, when the pinned commit is to hand): host code on AmigaChrome, 68k code written
   for the 68020 and 68040 elsewhere, and for under 64 bytes libnix's
   `memcpy` and `memset` as before. `calloc` then asks `AllocVec()` for
   uncleared memory, since exec's clearing is 68k code. `AC_HELPERS=0`

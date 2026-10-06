@@ -9,9 +9,11 @@
 #   TARBALLS     folder holding the upstream tarballs listed in SOURCES
 #                (default ./tarballs); the script checks their SHA-256
 #   JOBS         parallel jobs for CMake/make builds (default 2)
-#   AC_HELPERS   1 (default): zlib's checksums and the big copies and fills in
-#                zlib, libpng and libjpeg go through AC090's native helpers
-#                (achelpers/, see README); 0: the libraries as before
+#   AC_HELPERS   1: zlib's checksums and the big copies and fills in zlib,
+#                libpng and libjpeg go through AC090's native helpers
+#                (achelpers/, see README); 0: the libraries as before;
+#                auto (default): 1 when the pinned amigachrome-guest commit
+#                is to hand, else 0, saying so
 #   AMIGACHROME_GUEST  checkout of amigachrome-guest holding the commit in
 #                AMIGACHROME_GUEST_PINNED_COMMIT, for AC_HELPERS=1
 #                (default ../amigachrome-guest, else ../guest)
@@ -30,8 +32,12 @@ CXX="$P/bin/m68k-amigaos-g++"
 AR="$P/bin/m68k-amigaos-ar"
 CPU=${OS32_CPU_FLAGS:-"-m68020 -m68881 -mcrt=nix20"}
 CFLAGS="-O2 $CPU -D_DEFAULT_SOURCE=1 -D_POSIX_TIMERS=1 -D_POSIX_REALTIME_SIGNALS=1 -fno-common"
-AC_HELPERS=${AC_HELPERS:-1}
-case "$AC_HELPERS" in 0|1) ;; *) echo "AC_HELPERS must be 0 or 1, not $AC_HELPERS"; exit 2 ;; esac
+AC_HELPERS=${AC_HELPERS:-auto}
+case "$AC_HELPERS" in 0|1|auto) ;; *) echo "AC_HELPERS must be 0, 1 or auto, not $AC_HELPERS"; exit 2 ;; esac
+if [ "$AC_HELPERS" = auto ]; then          # on when the pinned amigachrome-guest commit is to hand
+    if sh "$HERE/achelpers/achelpers.sh" --have; then AC_HELPERS=1
+    else AC_HELPERS=0; echo "AC090 native helpers: off (no amigachrome-guest checkout with $(cat "$HERE/AMIGACHROME_GUEST_PINNED_COMMIT" | cut -c1-12); set AMIGACHROME_GUEST)"; fi
+fi
 mkdir -p "$OUT/include" "$OUT/lib" "$WORK"
 
 # AC090's native helpers, from amigachrome-guest at the pinned commit:

@@ -12,6 +12,7 @@
 #   CC, AR, CFLAGS     the compiler, archiver and flags of the build using them
 #
 # usage: achelpers/achelpers.sh OUTDIR
+#        achelpers/achelpers.sh --have   (succeeds when the pinned commit is there)
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 out=${1:?usage: achelpers.sh OUTDIR}
@@ -21,6 +22,7 @@ if [ -z "$G" ]; then
     if [ ! -d "$G" ] && [ -d "$ROOT/../guest" ]; then G="$ROOT/../guest"; fi
 fi
 pin=$(tr -d ' \r\n' < "$ROOT/AMIGACHROME_GUEST_PINNED_COMMIT")
+if [ "$out" = --have ]; then git -C "$G" cat-file -e "$pin^{commit}" 2>/dev/null; exit; fi
 if ! git -C "$G" cat-file -e "$pin^{commit}" 2>/dev/null; then
     echo "amigachrome-guest commit $pin (AMIGACHROME_GUEST_PINNED_COMMIT) is not in $G:"
     echo "fetch it there, set AMIGACHROME_GUEST to a checkout that has it, or build with AC_HELPERS=0"

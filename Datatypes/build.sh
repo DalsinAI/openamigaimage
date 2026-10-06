@@ -10,9 +10,10 @@
 #   TARBALLS     folder holding the upstream tarballs listed in ../SOURCES
 #                (default ./tarballs, else ../tarballs); the script checks
 #                their SHA-256
-#   AC_HELPERS   1 (default): big copies and fills in common/dtlib.c go
-#                through AC090's native helpers (../achelpers/, see
-#                ../README.md); 0: as before
+#   AC_HELPERS   1: big copies and fills in common/dtlib.c go through
+#                AC090's native helpers (../achelpers/, see ../README.md);
+#                0: as before; auto (default): 1 when the pinned
+#                amigachrome-guest commit is to hand, else 0, saying so
 #   AMIGACHROME_GUEST  checkout of amigachrome-guest holding the commit in
 #                ../AMIGACHROME_GUEST_PINNED_COMMIT, for AC_HELPERS=1
 #                (default amigachrome-guest, else guest, beside this
@@ -38,8 +39,12 @@ mkdir -p "$OUT/Classes/DataTypes" "$OUT/Devs/DataTypes" "$WORK"
 # AC090's native helpers for common/dtlib.c (realloc's copy, calloc's
 # clearing), built from amigachrome-guest at the pinned commit; ACLIB goes
 # on each datatype's link.
-AC_HELPERS=${AC_HELPERS:-1}
-case "$AC_HELPERS" in 0|1) ;; *) echo "AC_HELPERS must be 0 or 1, not $AC_HELPERS"; exit 2 ;; esac
+AC_HELPERS=${AC_HELPERS:-auto}
+case "$AC_HELPERS" in 0|1|auto) ;; *) echo "AC_HELPERS must be 0, 1 or auto, not $AC_HELPERS"; exit 2 ;; esac
+if [ "$AC_HELPERS" = auto ]; then          # on when the pinned amigachrome-guest commit is to hand
+    if sh "$HERE/../achelpers/achelpers.sh" --have; then AC_HELPERS=1
+    else AC_HELPERS=0; echo "AC090 native helpers: off (no amigachrome-guest checkout with $(cat "$HERE/../AMIGACHROME_GUEST_PINNED_COMMIT" | cut -c1-12); set AMIGACHROME_GUEST)"; fi
+fi
 ACFLAGS= ACLIB=
 if [ "$AC_HELPERS" = 1 ]; then
     CC="$CC" AR="$AR" CFLAGS="$CFLAGS" sh "$HERE/../achelpers/achelpers.sh" "$WORK/achelpers"
