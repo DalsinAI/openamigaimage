@@ -1,7 +1,7 @@
 /*
- * webm.datatype: a decoded 4:2:0 picture to 256 colours, the 6x6x6 colour
- * cube with 4x4 ordered dithering. Shared by the datatype and its tests, so
- * both make the same pixels. Integer only (BT.601, limited range).
+ * webm.datatype: a decoded picture (4:2:0, 4:4:4, or VP9's RGB) to 256
+ * colours, the 6x6x6 colour cube with 4x4 ordered dithering. Shared by the
+ * datatype and its tests, so both make the same pixels. Integer only (BT.601, limited range).
  * MIT, Copyright (c) 2026 Dalsin Limited.
  */
 #ifndef WEBM_DITHER_H
@@ -47,6 +47,15 @@ static void webm_dither(const WebMDitherTables *t, const vpx_image_t *img, unsig
         const unsigned char *pv = img->planes[VPX_PLANE_V] + (y >> img->y_chroma_shift) * img->stride[VPX_PLANE_V];
         const unsigned char *dither = bayer[y & 3];
         unsigned char *row = out + y * pitch;
+        if (img->cs == VPX_CS_SRGB) {
+            /* VP9 from RGB (ffmpeg's gbrp): the planes are G, B and R. */
+            for (x = 0; x < width; x++) {
+                int g = py[x], b = pu[x >> img->x_chroma_shift], r = pv[x >> img->x_chroma_shift];
+                int d = dither[x & 3] * 16;
+                row[x] = (unsigned char)(((r * 5 + d) >> 8) * 36 + ((g * 5 + d) >> 8) * 6 + ((b * 5 + d) >> 8));
+            }
+            continue;
+        }
         for (x = 0; x < width; x++) {
             int luma = t->y[py[x]];
             int u = pu[x >> img->x_chroma_shift], v = pv[x >> img->x_chroma_shift];

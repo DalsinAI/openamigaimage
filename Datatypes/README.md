@@ -56,7 +56,7 @@ Copy the files from `out/` (after building) to the same places on the Amiga:
 | `Devs/DataTypes/WebP` | `DEVS:DataTypes/` |
 | `Devs/DataTypes/WebM` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/openpicture.datatype` | `SYS:Classes/DataTypes/` |
-| `Devs/DataTypes/AVIF`, `AVIS`, `HEIC`, `HEIX`, `HEIF`, `JXL`, `JXL-ISO`, `RAW`, `PSD`, `XCF`, `EXR`, `HDR`, `QOI`, `DDS`, `JP2`, `J2K`, `ORA`, `KRA`, `CBZ`, `SVG`, `TTF`, `OTF` | `DEVS:DataTypes/` |
+| `Devs/DataTypes/AVIF`, `AVIS`, `HEIC`, `HEIX`, `HEIF`, `JXL`, `JXL-ISO`, `RAW`, `PSD`, `XCF`, `EXR`, `HDR`, `HDR-Bin`, `QOI`, `DDS`, `JP2`, `J2K`, `ORA`, `KRA`, `CBZ`, `SVG`, `TTF`, `OTF`, `OTF-TT` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/opensound.datatype` | `SYS:Classes/DataTypes/` |
 | `Devs/DataTypes/FLAC`, `Ogg`, `M4A`, `M4B`, `WMA`, `MP3-ID3`, `AAC`, `MIDI`, `PSID`, `RSID`, `XM`, `IT`, `S3M` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/opendoc.datatype` | `SYS:Classes/DataTypes/` |
@@ -144,8 +144,15 @@ are not yet checked.
   and the other classic formats are left to the Amiga's own datatypes, which
   work without a Cradle (`media.decode/1` still reads ICO, for OpenBrowser's
   site icons). An APNG is told by an acTL chunk straight after IHDR, or by
-  the name `.apng`; others show as a still PNG. Animated WebP stays a still
-  in `webp.datatype` until the Cradle's FFmpeg decodes WebP animation.
+  the name `.apng`; others show as a still PNG. An APNG's frames come
+  composited on black, without alpha (animation.datatype has none), at a
+  steady rate that keeps its uneven frame delays; it loops whatever its
+  play count says. Animated WebP stays a still in `webp.datatype` until the
+  Cradle's FFmpeg decodes WebP animation. An OpenType font with TrueType
+  outlines is told by its `.otf` name.
+- Text formats (SVG, Radiance HDR's header, PostScript, RTF, CSV and
+  Markdown) have text descriptors (DTF_ASCII): datatypes.library only tries
+  those on a file that reads as text.
 - The ProTracker MOD and MED descriptors are left out on purpose: the
   Amiga plays those itself. Pictures in JPEG, PNG and GIF also stay with the
   system's datatypes; `media.decode/1` decodes them for OpenBrowser.
@@ -162,9 +169,13 @@ are not yet checked.
   into memory and sent once, so a video needs that much free RAM. Each
   frame opens the service afresh, because animation.datatype loads frames
   from its own process. MKV is chosen by its name and tried before
-  webm.datatype (both are EBML).
+  webm.datatype (both are EBML). Each frame is a planar bitmap in chip RAM:
+  when the largest free chip block holds fewer than four frames, the video
+  is asked for at half the size (down to 160 wide), and running out says
+  "not enough memory" rather than nothing.
 - `webm.datatype`: sound (Vorbis or Opus) only through a services card or a
-  paired Cradle, as 8-bit mono, for files up to 64 MB; 256 colours only; VP9 decoded in software is slow on a real 68k;
+  paired Cradle, as 8-bit mono, for files up to 64 MB; 256 colours only
+  (VP9 in 4:2:0, 4:4:4 or RGB; 8-bit only); VP9 decoded in software is slow on a real 68k;
   files over 4 GB and laced video blocks are not supported.
 
 ## Licence
