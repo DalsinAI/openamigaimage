@@ -73,6 +73,7 @@ typedef struct {
     BYTE *sound;                   /* 8-bit mono for the whole clip, or NULL */
     ULONG soundLength;             /* samples in sound */
     ULONG soundPerFrame;           /* samples handed out with each frame */
+    ULONG period;                  /* Paula period for the sound, handed out with every frame */
 } WebMData;
 
 ULONG dt_instsize = sizeof(WebMData);
@@ -274,13 +275,12 @@ static ULONG loadSound(WebMData *d, ULONG size)
         && (pcm = AllocVec(frames * 2, MEMF_ANY))) {
         buf[1].ob_Data = pcm;
         buf[1].ob_Length = frames * 2;
-        if (dt_service_call(&svc, MD_DECODE, 0, 2, buf, extra, &got, NULL) == OSERR_OK && got) {
-            for (i = 0; i < got; i++)                 /* the high byte of each 16-bit sample */
-                pcm[i] = pcm[i * 2];
-            d->sound = (BYTE *)pcm;
+        if (dt_service_call(&svc, MD_DECODE, 0, 2, buf, extra, &got, NULL) == OSERR_OK && got
+            && (d->sound = AllocVec(got, MEMF_CHIP)) != NULL) {
+            for (i = 0; i < got; i++)                 /* the high byte of each 16-bit sample, in chip RAM */
+                d->sound[i] = pcm[i * 2];
             d->soundLength = got;
             rate = get32(info + 16);
-            pcm = NULL;
         }
     }
     if (pcm)
@@ -338,7 +338,8 @@ static BOOL loadWebM(Class *cl, Object *o)
 
     if ((rate = loadSound(d, size)) != 0) {
         d->soundPerFrame = rate / fps;
-        SetDTAttrs(o, NULL, NULL, ADTA_Period, PAL_CLOCK / rate, ADTA_Volume, 64, ADTA_Cycles, 1, TAG_DONE);
+        d->period = PAL_CLOCK / rate;
+        SetDTAttrs(o, NULL, NULL, ADTA_Period, d->period, ADTA_Volume, 64, ADTA_Cycles, 1, TAG_DONE);
     }
 
     setPalette(o);
@@ -400,6 +401,7 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
                 n = d->soundLength - at;
             alf->alf_Sample = d->sound + at;   /* ours: freed with the object */
             alf->alf_SampleLength = n;
+            alf->alf_Period = d->period;   /* animation.datatype 47 plays each frame's sound at this */
         }
         alf->alf_UserData = alf->alf_BitMap;     /* follows the bitmap from frame to frame */
         return bm ? 1 : 0;
