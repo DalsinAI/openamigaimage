@@ -69,7 +69,6 @@ typedef struct {
     struct BitMap *keyFrame;
     BYTE *sound;                   /* 8-bit mono for the whole video, or NULL */
     ULONG soundLength, soundPerFrame;
-    BOOL silent;                   /* sound is one frame of silence, handed out with every frame */
 } VideoData;
 
 ULONG dt_instsize = sizeof(VideoData);
@@ -98,22 +97,6 @@ static ULONG envNumber(const char *name, ULONG fallback, ULONG least)
     for (i = 0; i < n && buf[i] >= '0' && buf[i] <= '9'; i++)
         v = v * 10 + (buf[i] - '0');
     return v >= least ? v : fallback;
-}
-
-/* A number from ENV:, 0 allowed; FALSE when the variable isn't set. */
-static BOOL envSet(const char *name, ULONG *value)
-{
-    char buf[16];
-    LONG n = GetVar((CONST_STRPTR)name, (STRPTR)buf, sizeof buf, GVF_GLOBAL_ONLY);
-    ULONG v = 0;
-    LONG i;
-
-    if (n < 0)
-        return FALSE;
-    for (i = 0; i < n && buf[i] >= '0' && buf[i] <= '9'; i++)
-        v = v * 10 + (buf[i] - '0');
-    *value = v;
-    return TRUE;
 }
 
 /* With ENV:OpenImage/VideoLog set, each method animation.datatype sends
@@ -330,19 +313,6 @@ static BOOL loadVideo(Class *cl, Object *o)
     if ((get32(info + 8) & MD_FLAG_SOUND) && (rate = fetchSound(d, &svc, data, size)) != 0) {
         d->soundPerFrame = rate * 1000 / (fps1000 ? fps1000 : 25000);
         SetDTAttrs(o, NULL, NULL, ADTA_Period, PAL_CLOCK / rate, ADTA_Volume, 64, ADTA_Cycles, 1, TAG_DONE);
-    } else {
-        /* A film with no sound. animation.datatype 47 makes its sound
-         * object whatever the film; trial: OpenImage/VideoSilence 1 gives
-         * it a frame of silence each frame, as a CDXL always has sound. */
-        ULONG on = 0;
-        envSet("OpenImage/VideoSilence", &on);
-        rate = 8000;
-        if (on && (d->soundPerFrame = rate * 1000 / (fps1000 ? fps1000 : 25000)) != 0
-            && (d->sound = AllocVec(d->soundPerFrame, MEMF_CHIP | MEMF_CLEAR)) != NULL) {
-            d->soundLength = d->soundPerFrame;
-            d->silent = TRUE;
-            SetDTAttrs(o, NULL, NULL, ADTA_Period, PAL_CLOCK / rate, ADTA_Volume, 64, ADTA_Cycles, 1, TAG_DONE);
-        }
     }
     if (!(d->keyFrame = fetchFrame(d, 0, NULL, &nomem))) {
         if (nomem)
@@ -398,13 +368,8 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
          * the host, playing the sound or showing the key frame: so the
          * superclass goes first, and what we own is freed after it. */
         VideoData keep = *(VideoData *)INST_DATA(cl, o);
-        ULONG rc, mine = 1;
-        /* OpenImage/VideoKeyFrame 0: leave the key frame to the superclass
-         * (finding out whether animation.datatype 47 frees it itself). */
-        envSet("OpenImage/VideoKeyFrame", &mine);
-        vlog("dispose key=%lx free=%lu", (unsigned long)keep.keyFrame, (unsigned long)mine);
-        if (!mine)
-            keep.keyFrame = NULL;
+        ULONG rc;
+        vlog("dispose key=%lx", (unsigned long)keep.keyFrame);
         rc = DoSuperMethodA(cl, o, msg);
         vlog("superclass disposed");
         freeData(&keep);
@@ -436,10 +401,7 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
         alf->alf_CMap = NULL;
         alf->alf_Sample = NULL;
         alf->alf_SampleLength = 0;
-        if (d->silent) {
-            alf->alf_Sample = d->sound;
-            alf->alf_SampleLength = d->soundPerFrame;
-        } else if (d->sound && d->soundPerFrame && index * d->soundPerFrame < d->soundLength) {
+        if (d->sound && d->soundPerFrame && index * d->soundPerFrame < d->soundLength) {
             ULONG at = index * d->soundPerFrame, n = d->soundPerFrame;
             if (at + n > d->soundLength)
                 n = d->soundLength - at;
