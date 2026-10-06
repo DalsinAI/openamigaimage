@@ -165,9 +165,11 @@ static ULONG decodeRequest(APTR arg)
     return TRUE;
 }
 
-static struct BitMap *frameBitMap(WebMData *d)
+/* The decoded frame in a bitmap: "into" when animation.datatype hands one
+ * back to be used again (see openvideo's ADTM_LOADFRAME), else a new one. */
+static struct BitMap *frameBitMap(WebMData *d, struct BitMap *into)
 {
-    struct BitMap *bm = AllocBitMap(d->info.width, d->info.height, 8, BMF_CLEAR, NULL);
+    struct BitMap *bm = into ? into : AllocBitMap(d->info.width, d->info.height, 8, BMF_CLEAR, NULL);
     struct RastPort rp;
     if (!bm)
         return NULL;
@@ -320,7 +322,7 @@ static BOOL loadWebM(Class *cl, Object *o)
         SetIoErr(ERROR_NO_FREE_STORE);
         return FALSE;
     }
-    if (!loadFrame(d, 0) || !(d->keyFrame = frameBitMap(d))) {
+    if (!loadFrame(d, 0) || !(d->keyFrame = frameBitMap(d, NULL))) {
         SetIoErr(DTERROR_INVALID_DATA);
         return FALSE;
     }
@@ -378,17 +380,17 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
     case ADTM_LOADFRAME: {
         WebMData *d = INST_DATA(cl, o);
         struct adtFrame *alf = (struct adtFrame *)msg;
-        struct BitMap *bm = NULL;
+        struct BitMap *bm = NULL, *given = alf->alf_BitMap;
         ULONG index = alf->alf_TimeStamp;
         if (index >= d->info.frameCount)
             index = d->info.frameCount - 1;
         ObtainSemaphore(&d->lock);
         if (d->info.frames && loadFrame(d, index))
-            bm = frameBitMap(d);
+            bm = frameBitMap(d, given);
         ReleaseSemaphore(&d->lock);
         alf->alf_Frame = index;
         alf->alf_Duration = 1;
-        alf->alf_BitMap = bm;
+        alf->alf_BitMap = bm ? bm : given;
         alf->alf_CMap = NULL;
         alf->alf_Sample = NULL;
         alf->alf_SampleLength = 0;
@@ -399,7 +401,7 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
             alf->alf_Sample = d->sound + at;   /* ours: freed with the object */
             alf->alf_SampleLength = n;
         }
-        alf->alf_UserData = bm;
+        alf->alf_UserData = alf->alf_BitMap;     /* follows the bitmap from frame to frame */
         return bm ? 1 : 0;
     }
     case ADTM_UNLOADFRAME: {
