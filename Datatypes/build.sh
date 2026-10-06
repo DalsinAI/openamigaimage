@@ -10,6 +10,14 @@
 #   TARBALLS     folder holding the upstream tarballs listed in ../SOURCES
 #                (default ./tarballs, else ../tarballs); the script checks
 #                their SHA-256
+#   AC_HELPERS   1: big copies and fills in common/dtlib.c go through
+#                AC090's native helpers (../achelpers/, see ../README.md);
+#                0: as before; auto (default): 1 when the pinned
+#                amigachrome-guest commit is to hand, else 0, saying so
+#   AMIGACHROME_GUEST  checkout of amigachrome-guest holding the commit in
+#                ../AMIGACHROME_GUEST_PINNED_COMMIT, for AC_HELPERS=1
+#                (default amigachrome-guest, else guest, beside this
+#                repository)
 #
 # usage: ./build.sh
 set -eu
@@ -23,9 +31,26 @@ if [ -z "${TARBALLS:-}" ]; then
 fi
 WORK="$HERE/work"
 CC="$P/bin/m68k-amigaos-gcc"
+AR="$P/bin/m68k-amigaos-ar"
 # No -m68881: a datatype must load on a 68020 without an FPU too.
 CFLAGS="-O2 -m68020 -fomit-frame-pointer -DNDEBUG -DWORDS_BIGENDIAN -Wall -Wno-pointer-sign"
 mkdir -p "$OUT/Classes/DataTypes" "$OUT/Devs/DataTypes" "$WORK"
+
+# AC090's native helpers for common/dtlib.c (realloc's copy, calloc's
+# clearing), built from amigachrome-guest at the pinned commit; ACLIB goes
+# on each datatype's link.
+AC_HELPERS=${AC_HELPERS:-auto}
+case "$AC_HELPERS" in 0|1|auto) ;; *) echo "AC_HELPERS must be 0, 1 or auto, not $AC_HELPERS"; exit 2 ;; esac
+if [ "$AC_HELPERS" = auto ]; then          # on when the pinned amigachrome-guest commit is to hand
+    if sh "$HERE/../achelpers/achelpers.sh" --have; then AC_HELPERS=1
+    else AC_HELPERS=0; echo "AC090 native helpers: off (no amigachrome-guest checkout with $(cat "$HERE/../AMIGACHROME_GUEST_PINNED_COMMIT" | cut -c1-12); set AMIGACHROME_GUEST)"; fi
+fi
+ACFLAGS= ACLIB=
+if [ "$AC_HELPERS" = 1 ]; then
+    CC="$CC" AR="$AR" CFLAGS="$CFLAGS" sh "$HERE/../achelpers/achelpers.sh" "$WORK/achelpers"
+    ACFLAGS="-DOAI_AC_HELPERS -I$WORK/achelpers/src"
+    ACLIB="$WORK/achelpers/libachelpers.a"
+fi
 
 unpack() {
     t="$TARBALLS/$2"
@@ -62,9 +87,9 @@ XFLAGS="-I$W -I$W/src" compile "$W" "$WORK/obj-libwebp" \
     src/utils/huffman_utils.c src/utils/palette.c src/utils/quant_levels_dec_utils.c \
     src/utils/random_utils.c src/utils/rescaler_utils.c src/utils/thread_utils.c src/utils/utils.c
 # dtstart.c is linked first, so the library's first code is a safe return.
-XFLAGS="-I$HERE/common -I$W/src" compile "$HERE" "$WORK/obj-webp" common/dtstart.c common/dtlib.c webp/webpclass.c
+XFLAGS="-I$HERE/common -I$W/src $ACFLAGS" compile "$HERE" "$WORK/obj-webp" common/dtstart.c common/dtlib.c webp/webpclass.c
 $CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/webp.datatype" \
-    "$WORK"/obj-webp/common_dtstart.o "$WORK"/obj-webp/common_dtlib.o "$WORK"/obj-webp/webp_webpclass.o "$WORK"/obj-libwebp/*.o -lamiga \
+    "$WORK"/obj-webp/common_dtstart.o "$WORK"/obj-webp/common_dtlib.o "$WORK"/obj-webp/webp_webpclass.o "$WORK"/obj-libwebp/*.o $ACLIB -lamiga \
     -Wl,-Map="$WORK/webp.datatype.map"
 echo "webp.datatype: $(wc -c < "$OUT/Classes/DataTypes/webp.datatype") bytes"
 # RIFF, any length, WEBP.
@@ -86,12 +111,12 @@ mkdir -p "$WORK/libvpx-build"
     --disable-webm-io --disable-libyuv --enable-static --disable-shared --disable-postproc \
     --disable-vp9-postproc --disable-internal-stats --disable-pic --size-limit=8192x8192 > configure.log 2>&1 \
     && make -j"${JOBS:-2}" libvpx.a > build.log 2>&1) || { echo "libvpx build failed (see $WORK/libvpx-build)"; exit 1; }
-XFLAGS="-I$HERE/common -I$HERE/include -I$HERE/webm -I$V -I$WORK/libvpx-build" compile "$HERE" "$WORK/obj-webm" \
+XFLAGS="-I$HERE/common -I$HERE/include -I$HERE/webm -I$V -I$WORK/libvpx-build $ACFLAGS" compile "$HERE" "$WORK/obj-webm" \
     common/dtstart.c common/dtlib.c common/dtstack.c common/dtservice.c webm/webm_demux.c webm/webmclass.c
 $CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/webm.datatype" \
     "$WORK"/obj-webm/common_dtstart.o "$WORK"/obj-webm/common_dtlib.o "$WORK"/obj-webm/common_dtstack.o \
     "$WORK"/obj-webm/common_dtservice.o \
-    "$WORK"/obj-webm/webm_webm_demux.o "$WORK"/obj-webm/webm_webmclass.o "$WORK/libvpx-build/libvpx.a" -lamiga \
+    "$WORK"/obj-webm/webm_webm_demux.o "$WORK"/obj-webm/webm_webmclass.o "$WORK/libvpx-build/libvpx.a" $ACLIB -lamiga \
     -Wl,-Map="$WORK/webm.datatype.map"
 echo "webm.datatype: $(wc -c < "$OUT/Classes/DataTypes/webm.datatype") bytes"
 # The EBML magic; datatypes.library then offers the file to webm.datatype,
@@ -104,11 +129,11 @@ echo "Devs/DataTypes/WebM: $(wc -c < "$OUT/Devs/DataTypes/WebM") bytes"
 # AVIF, HEIC, JPEG XL, camera RAW, PSD, XCF, EXR, HDR, QOI, DDS and JPEG 2000,
 # decoded by the media.decode/1 service (openamigaservice) on the services
 # card or a paired Cradle; no codec on the 68k.
-XFLAGS="-I$HERE/common -I$HERE/include" compile "$HERE" "$WORK/obj-openpicture" \
+XFLAGS="-I$HERE/common -I$HERE/include $ACFLAGS" compile "$HERE" "$WORK/obj-openpicture" \
     common/dtstart.c common/dtlib.c common/dtservice.c openpicture/pictureclass.c
 $CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/openpicture.datatype" \
     "$WORK"/obj-openpicture/common_dtstart.o "$WORK"/obj-openpicture/common_dtlib.o \
-    "$WORK"/obj-openpicture/common_dtservice.o "$WORK"/obj-openpicture/openpicture_pictureclass.o -lamiga \
+    "$WORK"/obj-openpicture/common_dtservice.o "$WORK"/obj-openpicture/openpicture_pictureclass.o $ACLIB -lamiga \
     -Wl,-Map="$WORK/openpicture.datatype.map"
 echo "openpicture.datatype: $(wc -c < "$OUT/Classes/DataTypes/openpicture.datatype") bytes"
 picdesc() {      # FILE NAME ID PATTERN MASK...
@@ -174,11 +199,11 @@ DT_PRIORITY=1 picdesc RAW "Camera RAW" raw \
 # --- opensound.datatype -------------------------------------------------------
 # FLAC, Ogg (Vorbis, Opus), AAC/M4A, ALAC, WMA and MP3, decoded by the
 # media.decode/1 service on the services card or a paired Cradle.
-XFLAGS="-I$HERE/common -I$HERE/include" compile "$HERE" "$WORK/obj-opensound" \
+XFLAGS="-I$HERE/common -I$HERE/include $ACFLAGS" compile "$HERE" "$WORK/obj-opensound" \
     common/dtstart.c common/dtlib.c common/dtservice.c opensound/soundclass.c
 $CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/opensound.datatype" \
     "$WORK"/obj-opensound/common_dtstart.o "$WORK"/obj-opensound/common_dtlib.o \
-    "$WORK"/obj-opensound/common_dtservice.o "$WORK"/obj-opensound/opensound_soundclass.o -lamiga \
+    "$WORK"/obj-opensound/common_dtservice.o "$WORK"/obj-opensound/opensound_soundclass.o $ACLIB -lamiga \
     -Wl,-Map="$WORK/opensound.datatype.map"
 echo "opensound.datatype: $(wc -c < "$OUT/Classes/DataTypes/opensound.datatype") bytes"
 sounddesc() {    # FILE NAME ID MASK...
@@ -216,11 +241,11 @@ sounddesc S3M "Scream Tracker module" s3m $(i=0; while [ $i -lt 44 ]; do printf 
 # --- opendoc.datatype ---------------------------------------------------------
 # Office documents as pictures of their pages, laid out by LibreOffice through
 # the doc.render/1 service on the services card or a paired Cradle.
-XFLAGS="-I$HERE/common -I$HERE/include" compile "$HERE" "$WORK/obj-opendoc" \
+XFLAGS="-I$HERE/common -I$HERE/include $ACFLAGS" compile "$HERE" "$WORK/obj-opendoc" \
     common/dtstart.c common/dtlib.c common/dtservice.c opendoc/docclass.c
 $CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/opendoc.datatype" \
     "$WORK"/obj-opendoc/common_dtstart.o "$WORK"/obj-opendoc/common_dtlib.o \
-    "$WORK"/obj-opendoc/common_dtservice.o "$WORK"/obj-opendoc/opendoc_docclass.o -lamiga \
+    "$WORK"/obj-opendoc/common_dtservice.o "$WORK"/obj-opendoc/opendoc_docclass.o $ACLIB -lamiga \
     -Wl,-Map="$WORK/opendoc.datatype.map"
 echo "opendoc.datatype: $(wc -c < "$OUT/Classes/DataTypes/opendoc.datatype") bytes"
 docdesc() {      # FILE NAME ID PATTERN MASK...
@@ -257,11 +282,11 @@ DT_TEXT=1 DT_PRIORITY=1 docdesc Markdown Markdown mdwn "#?.(md|markdown)"
 # --- openvideo.datatype -------------------------------------------------------
 # MP4, MOV, MKV, AVI, WMV, MPEG and FLV, decoded frame by frame by the
 # media.decode/1 service on the services card or a paired Cradle.
-XFLAGS="-I$HERE/common -I$HERE/include" compile "$HERE" "$WORK/obj-openvideo" \
+XFLAGS="-I$HERE/common -I$HERE/include $ACFLAGS" compile "$HERE" "$WORK/obj-openvideo" \
     common/dtstart.c common/dtlib.c common/dtservice.c openvideo/videoclass.c
 $CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/openvideo.datatype" \
     "$WORK"/obj-openvideo/common_dtstart.o "$WORK"/obj-openvideo/common_dtlib.o \
-    "$WORK"/obj-openvideo/common_dtservice.o "$WORK"/obj-openvideo/openvideo_videoclass.o -lamiga \
+    "$WORK"/obj-openvideo/common_dtservice.o "$WORK"/obj-openvideo/openvideo_videoclass.o $ACLIB -lamiga \
     -Wl,-Map="$WORK/openvideo.datatype.map"
 echo "openvideo.datatype: $(wc -c < "$OUT/Classes/DataTypes/openvideo.datatype") bytes"
 videodesc() {    # FILE NAME ID PATTERN MASK...

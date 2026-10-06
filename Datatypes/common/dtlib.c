@@ -27,6 +27,15 @@
 
 #include "dtlib.h"
 
+#ifdef OAI_AC_HELPERS
+/* Big copies and clears through AC090's native helpers (build.sh, AC_HELPERS):
+ * host code on AmigaChrome, 68k code written for the 68020 and 68040
+ * elsewhere; under 64 bytes, the C library's as before. */
+#include "ac_helpers.h"
+#else
+#define ac_memcpy_auto memcpy
+#endif
+
 struct ExecBase *SysBase;
 struct DosLibrary *DOSBase;
 struct IntuitionBase *IntuitionBase;
@@ -216,9 +225,17 @@ void *calloc(size_t count, size_t size)
     ULONG *block;
     if (size && total / size != count)
         return NULL;
+#ifdef OAI_AC_HELPERS
+    /* cleared here rather than by exec (MEMF_CLEAR), whose loop is 68k code */
+    block = AllocVec(total + 8, MEMF_ANY);
+    if (!block)
+        return NULL;
+    ac_memset_auto(block, 0, total + 8);
+#else
     block = AllocVec(total + 8, MEMF_ANY | MEMF_CLEAR);
     if (!block)
         return NULL;
+#endif
     block[0] = total;
     return block + 2;
 }
@@ -244,7 +261,7 @@ void *realloc(void *p, size_t size)
         return p;
     n = malloc(size);
     if (n) {
-        memcpy(n, p, old);
+        ac_memcpy_auto(n, p, old);
         free(p);
     }
     return n;

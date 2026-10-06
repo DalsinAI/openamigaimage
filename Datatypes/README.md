@@ -75,7 +75,9 @@ Then reboot, or run `AddDataTypes DEVS:DataTypes/WebP DEVS:DataTypes/WebM`.
 You need the os32-gcc16 compiler (bebbo's amiga-gcc on GCC 16.2 with libnix;
 see DalsinAI/openamigabrowser `stove/`), Python 3 for the descriptor files,
 and the libwebp and libvpx tarballs listed in `../SOURCES`, in the
-repository's `tarballs/` folder. Then:
+repository's `tarballs/` folder; with `AC_HELPERS=1`, also amigachrome-guest
+at the commit in `../AMIGACHROME_GUEST_PINNED_COMMIT` (see the main README's
+Building). Then:
 
 ```
 ./build.sh
@@ -90,6 +92,13 @@ How they are made:
   (`common/dtlib.c`): Open, Close, Expunge and ObtainEngine(). Only libnix's
   string and setjmp functions are linked in, and memory comes from
   `AllocVec()`, so several programs can decode at once.
+- **AC090's native helpers.** `common/dtlib.c`'s `realloc` copies, and its
+  `calloc` clears, through amigachrome-guest's helpers (`../achelpers/`,
+  `AC_HELPERS=1`, or `auto`, the default, when the pinned commit is to hand): host code on AmigaChrome, 68k code written
+  for the 68020 and 68040 elsewhere, and for under 64 bytes libnix's
+  `memcpy` and `memset` as before. `calloc` then asks `AllocVec()` for
+  uncleared memory, since exec's clearing is 68k code. `AC_HELPERS=0`
+  builds them as before.
 - **A stack of their own.** libvpx runs on a 96 KB stack (`common/dtstack.c`),
   because programs and datatypes.library's helper processes may call a
   datatype with only a few kilobytes.
