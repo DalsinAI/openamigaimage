@@ -52,6 +52,11 @@ const UWORD dt_superversion = 40;
 #define MD_KIND_ANIMATION 2
 #define MD_KIND_SOUND 3
 #define MD_FLAG_SOUND 2
+#define MD_FLAG_LOOP 4
+
+#ifndef DTA_Repeat
+#define DTA_Repeat (DTA_Dummy + 302)
+#endif
 
 /* The PAL colour clock, for periods. */
 #define PAL_CLOCK 3546895UL
@@ -281,6 +286,8 @@ static BOOL loadVideo(Class *cl, Object *o)
         ADTA_Frames, d->frames,
         ADTA_FramesPerSecond, fps,
         ADTA_KeyFrame, (ULONG)d->keyFrame,
+        /* an animated GIF or PNG that asks to play more than once */
+        DTA_Repeat, (get32(info + 8) & MD_FLAG_LOOP) ? TRUE : FALSE,
         TAG_DONE);
     ok = TRUE;
 out:
