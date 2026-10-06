@@ -31,6 +31,7 @@ AR="$P/bin/m68k-amigaos-ar"
 CPU=${OS32_CPU_FLAGS:-"-m68020 -m68881 -mcrt=nix20"}
 CFLAGS="-O2 $CPU -D_DEFAULT_SOURCE=1 -D_POSIX_TIMERS=1 -D_POSIX_REALTIME_SIGNALS=1 -fno-common"
 AC_HELPERS=${AC_HELPERS:-1}
+case "$AC_HELPERS" in 0|1) ;; *) echo "AC_HELPERS must be 0 or 1, not $AC_HELPERS"; exit 2 ;; esac
 mkdir -p "$OUT/include" "$OUT/lib" "$WORK"
 
 # AC090's native helpers, from amigachrome-guest at the pinned commit:

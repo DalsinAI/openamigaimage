@@ -38,8 +38,10 @@ mkdir -p "$OUT/Classes/DataTypes" "$OUT/Devs/DataTypes" "$WORK"
 # AC090's native helpers for common/dtlib.c (realloc's copy, calloc's
 # clearing), built from amigachrome-guest at the pinned commit; ACLIB goes
 # on each datatype's link.
+AC_HELPERS=${AC_HELPERS:-1}
+case "$AC_HELPERS" in 0|1) ;; *) echo "AC_HELPERS must be 0 or 1, not $AC_HELPERS"; exit 2 ;; esac
 ACFLAGS= ACLIB=
-if [ "${AC_HELPERS:-1}" = 1 ]; then
+if [ "$AC_HELPERS" = 1 ]; then
     CC="$CC" AR="$AR" CFLAGS="$CFLAGS" sh "$HERE/../achelpers/achelpers.sh" "$WORK/achelpers"
     ACFLAGS="-DOAI_AC_HELPERS -I$WORK/achelpers/src"
     ACLIB="$WORK/achelpers/libachelpers.a"
