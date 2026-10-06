@@ -146,8 +146,8 @@ are not yet checked.
   site icons). An APNG is told by an acTL chunk straight after IHDR, or by
   the name `.apng`; others show as a still PNG. An APNG's frames come
   composited on black, without alpha (animation.datatype has none), at a
-  steady rate that keeps its uneven frame delays; it loops whatever its
-  play count says. Animated WebP stays a still in `webp.datatype` until the
+  steady rate that keeps its uneven frame delays; it repeats when its
+  play count is not one. Animated WebP stays a still in `webp.datatype` until the
   Cradle's FFmpeg decodes WebP animation. An OpenType font with TrueType
   outlines is told by its `.otf` name.
 - Text formats (SVG, Radiance HDR's header, PostScript, RTF, CSV and
