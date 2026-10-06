@@ -264,6 +264,7 @@ static void freeData(VideoData *d)
         memset(buf, 0, sizeof buf);
         dt_service_call(&svc, MD_VCLOSE, d->handle, 0, buf, extra, NULL, NULL);
         dt_service_close(&svc);
+        vlog("video closed on the host");
     }
     d->handle = 0;
     if (d->keyFrame) {
@@ -389,6 +390,7 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
         if (!mine)
             keep.keyFrame = NULL;
         rc = DoSuperMethodA(cl, o, msg);
+        vlog("superclass disposed");
         freeData(&keep);
         vlog("disposed");
         return rc;
@@ -408,6 +410,7 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
         BOOL nomem;
         if (index >= d->frames)
             index = d->frames - 1;
+        vlog("loading ts=%lu given=%lx", (unsigned long)alf->alf_TimeStamp, (unsigned long)given);
         bm = fetchFrame(d, index, given, &nomem);
         if (nomem)
             SetIoErr(ERROR_NO_FREE_STORE);
