@@ -19,6 +19,7 @@
 #include <dos/var.h>
 #include <graphics/gfx.h>
 #include <graphics/rastport.h>
+#include <graphics/view.h>
 #include <datatypes/datatypes.h>
 #include <datatypes/datatypesclass.h>
 #include <datatypes/pictureclass.h>
@@ -69,6 +70,7 @@ typedef struct {
     struct BitMap *keyFrame;
     BYTE *sound;                   /* 8-bit mono for the whole video, or NULL */
     ULONG soundLength, soundPerFrame;
+    struct ColorMap *cmap;         /* the 256 colours, handed out with each frame (VideoCMap) */
 } VideoData;
 
 ULONG dt_instsize = sizeof(VideoData);
@@ -97,6 +99,23 @@ static ULONG envNumber(const char *name, ULONG fallback, ULONG least)
     for (i = 0; i < n && buf[i] >= '0' && buf[i] <= '9'; i++)
         v = v * 10 + (buf[i] - '0');
     return v >= least ? v : fallback;
+}
+
+/* A number from ENV:, 0 allowed; FALSE when the variable isn't set. For trying
+ * out how animation.datatype wants its frames (see ADTM_LOADFRAME). */
+static BOOL envSet(const char *name, ULONG *value)
+{
+    char buf[16];
+    LONG n = GetVar((CONST_STRPTR)name, (STRPTR)buf, sizeof buf, GVF_GLOBAL_ONLY);
+    ULONG v = 0;
+    LONG i;
+
+    if (n < 0)
+        return FALSE;
+    for (i = 0; i < n && buf[i] >= '0' && buf[i] <= '9'; i++)
+        v = v * 10 + (buf[i] - '0');
+    *value = v;
+    return TRUE;
 }
 
 /* With ENV:OpenImage/VideoLog set, each method animation.datatype sends
@@ -167,7 +186,7 @@ static void setPalette(Object *o)
 /* Frame index as a new 8-bit bitmap, from the host. Each call opens the
  * service itself: animation.datatype loads frames from its own process.
  * NULL with *nomem set when the memory ran out. */
-static struct BitMap *fetchFrame(VideoData *d, ULONG index, BOOL *nomem)
+static struct BitMap *fetchFrame(VideoData *d, ULONG index, struct BitMap *into, BOOL *nomem)
 {
     struct dt_service svc;
     struct OSBuffer buf[4];
@@ -179,10 +198,11 @@ static struct BitMap *fetchFrame(VideoData *d, ULONG index, BOOL *nomem)
 
     /* The chip RAM first: when it has run out, no frame is decoded for nothing. */
     *nomem = TRUE;
-    if (!(bm = AllocBitMap(d->width, d->height, 8, BMF_CLEAR, NULL)))
+    if (!(bm = into ? into : AllocBitMap(d->width, d->height, 8, BMF_CLEAR, NULL)))
         return NULL;
     if (!(chunky = AllocVec(d->width * d->height, MEMF_ANY))) {
-        FreeBitMap(bm);
+        if (!into)
+            FreeBitMap(bm);
         return NULL;
     }
     *nomem = FALSE;
@@ -200,7 +220,8 @@ static struct BitMap *fetchFrame(VideoData *d, ULONG index, BOOL *nomem)
     }
     FreeVec(chunky);
     if (!ok) {
-        FreeBitMap(bm);
+        if (!into)
+            FreeBitMap(bm);
         bm = NULL;
     }
     return bm;
@@ -255,6 +276,9 @@ static void freeData(VideoData *d)
     if (d->sound)
         FreeVec(d->sound);
     d->sound = NULL;
+    if (d->cmap)
+        FreeColorMap(d->cmap);
+    d->cmap = NULL;
 }
 
 static BOOL loadVideo(Class *cl, Object *o)
@@ -308,13 +332,29 @@ static BOOL loadVideo(Class *cl, Object *o)
         d->soundPerFrame = rate * 1000 / (fps1000 ? fps1000 : 25000);
         SetDTAttrs(o, NULL, NULL, ADTA_Period, PAL_CLOCK / rate, ADTA_Volume, 64, ADTA_Cycles, 1, TAG_DONE);
     }
-    if (!(d->keyFrame = fetchFrame(d, 0, &nomem))) {
+    if (!(d->keyFrame = fetchFrame(d, 0, NULL, &nomem))) {
         if (nomem)
             err = ERROR_NO_FREE_STORE;
         goto out;
     }
 
     setPalette(o);
+    {
+        ULONG on;
+        if (envSet("OpenImage/VideoCMap", &on) && on && (d->cmap = GetColorMap(256)) != NULL) {
+            int i;
+            for (i = 0; i < 256; i++) {
+                ULONG r, g, b;
+                if (i < 216) {
+                    r = (i / 36) * 51;
+                    g = ((i / 6) % 6) * 51;
+                    b = (i % 6) * 51;
+                } else
+                    r = g = b = (i - 216) * 255 / 39;
+                SetRGB32CM(d->cmap, i, r * 0x01010101UL, g * 0x01010101UL, b * 0x01010101UL);
+            }
+        }
+    }
     SetDTAttrs(o, NULL, NULL,
         DTA_ObjName, (ULONG)(name ? FilePart(name) : (STRPTR)"Video"),
         DTA_NominalHoriz, d->width,
@@ -370,18 +410,26 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
     case ADTM_LOADFRAME: {
         VideoData *d = INST_DATA(cl, o);
         struct adtFrame *alf = (struct adtFrame *)msg;
-        ULONG index = alf->alf_TimeStamp;
-        struct BitMap *bm;
+        ULONG index = alf->alf_TimeStamp, duration = 1, into = 0;
+        struct BitMap *bm, *given = alf->alf_BitMap;
         BOOL nomem;
+        vlog("asked ts=%lu frame=%lu dur=%lu bm=%lx cmap=%lx", (unsigned long)alf->alf_TimeStamp, (unsigned long)alf->alf_Frame,
+             (unsigned long)alf->alf_Duration, (unsigned long)given, (unsigned long)alf->alf_CMap);
+        /* Ways of handing frames over, to try (ENV:OpenImage/Video...):
+         * Duration N sets alf_Duration; Into draws into a bitmap the
+         * superclass gives; CMap hands the colours out with each frame. */
+        envSet("OpenImage/VideoDuration", &duration);
+        if (!envSet("OpenImage/VideoInto", &into) || !given)
+            into = 0;
         if (index >= d->frames)
             index = d->frames - 1;
-        bm = fetchFrame(d, index, &nomem);
+        bm = fetchFrame(d, index, into ? given : NULL, &nomem);
         if (nomem)
             SetIoErr(ERROR_NO_FREE_STORE);
         alf->alf_Frame = index;
-        alf->alf_Duration = 1;
+        alf->alf_Duration = duration;
         alf->alf_BitMap = bm;
-        alf->alf_CMap = NULL;
+        alf->alf_CMap = d->cmap;
         alf->alf_Sample = NULL;
         alf->alf_SampleLength = 0;
         if (d->sound && d->soundPerFrame && index * d->soundPerFrame < d->soundLength) {
@@ -391,7 +439,7 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
             alf->alf_Sample = d->sound + at;   /* ours: freed with the object */
             alf->alf_SampleLength = n;
         }
-        alf->alf_UserData = bm;
+        alf->alf_UserData = into ? NULL : bm;  /* only what we allocated is ours to free */
         vlog("load ts=%lu frame=%lu bm=%lx", (unsigned long)alf->alf_TimeStamp, (unsigned long)index, (unsigned long)bm);
         return bm ? 1 : 0;
     }
@@ -402,9 +450,9 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
         if (alf->alf_UserData) {
             WaitBlit();
             FreeBitMap((struct BitMap *)alf->alf_UserData);
+            alf->alf_BitMap = NULL;       /* a bitmap the superclass gave stays its own */
         }
         alf->alf_UserData = NULL;
-        alf->alf_BitMap = NULL;
         return 0;
     }
     default:
