@@ -244,14 +244,15 @@ static ULONG fetchSound(VideoData *d, struct dt_service *svc, UBYTE *file, ULONG
         return 0;
     buf[1].ob_Data = pcm;
     buf[1].ob_Length = frames * 2;
-    if (dt_service_call(svc, MD_DECODE, 0, 2, buf, extra, &got, NULL) == OSERR_OK && got) {
-        for (i = 0; i < got; i++)                   /* the high byte of each 16-bit sample */
-            pcm[i] = pcm[i * 2];
-        d->sound = (BYTE *)pcm;
+    if (dt_service_call(svc, MD_DECODE, 0, 2, buf, extra, &got, NULL) == OSERR_OK && got
+        && (d->sound = AllocVec(got, MEMF_CHIP)) != NULL) {
+        for (i = 0; i < got; i++)                   /* the high byte of each 16-bit sample, in chip RAM */
+            d->sound[i] = pcm[i * 2];
         d->soundLength = got;
         rate = get32(info + 16);
-    } else
-        FreeVec(pcm);
+    }
+    FreeVec(pcm);
+    vlog("sound %lu samples at %lu Hz", got, rate);
     return rate;
 }
 
@@ -325,6 +326,7 @@ static BOOL loadVideo(Class *cl, Object *o)
     fps = (fps1000 + 500) / 1000;
     if (!fps)
         fps = 1;
+    vlog("film flags %lx", get32(info + 8));
     if ((get32(info + 8) & MD_FLAG_SOUND) && (rate = fetchSound(d, &svc, data, size)) != 0) {
         d->soundPerFrame = rate * 1000 / (fps1000 ? fps1000 : 25000);
         SetDTAttrs(o, NULL, NULL, ADTA_Period, PAL_CLOCK / rate, ADTA_Volume, 64, ADTA_Cycles, 1, TAG_DONE);
