@@ -69,6 +69,7 @@ typedef struct {
     struct BitMap *keyFrame;
     BYTE *sound;                   /* 8-bit mono for the whole video, or NULL */
     ULONG soundLength, soundPerFrame;
+    ULONG period;                  /* Paula period for the sound, handed out with every frame */
 } VideoData;
 
 ULONG dt_instsize = sizeof(VideoData);
@@ -312,7 +313,8 @@ static BOOL loadVideo(Class *cl, Object *o)
     vlog("film flags %lx", get32(info + 8));
     if ((get32(info + 8) & MD_FLAG_SOUND) && (rate = fetchSound(d, &svc, data, size)) != 0) {
         d->soundPerFrame = rate * 1000 / (fps1000 ? fps1000 : 25000);
-        SetDTAttrs(o, NULL, NULL, ADTA_Period, PAL_CLOCK / rate, ADTA_Volume, 64, ADTA_Cycles, 1, TAG_DONE);
+        d->period = PAL_CLOCK / rate;
+        SetDTAttrs(o, NULL, NULL, ADTA_Period, d->period, ADTA_Volume, 64, ADTA_Cycles, 1, TAG_DONE);
     }
     if (!(d->keyFrame = fetchFrame(d, 0, NULL, &nomem))) {
         if (nomem)
@@ -407,6 +409,7 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
                 n = d->soundLength - at;
             alf->alf_Sample = d->sound + at;   /* ours: freed with the object */
             alf->alf_SampleLength = n;
+            alf->alf_Period = d->period;   /* animation.datatype 47 plays each frame's sound at this */
         }
         alf->alf_UserData = alf->alf_BitMap;
         vlog("load ts=%lu frame=%lu given=%lx bm=%lx", (unsigned long)alf->alf_TimeStamp, (unsigned long)index,
