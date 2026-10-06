@@ -140,30 +140,37 @@ static struct BitMap *fetchFrame(VideoData *d, ULONG index, BOOL *nomem)
     struct dt_service svc;
     struct OSBuffer buf[4];
     ULONG extra[4] = { index, 0, 0, 0 };
-    struct BitMap *bm = NULL;
+    struct BitMap *bm;
     struct RastPort rp;
     UBYTE *chunky;
+    BOOL ok = FALSE;
 
-    *nomem = FALSE;
+    /* The chip RAM first: when it has run out, no frame is decoded for nothing. */
+    *nomem = TRUE;
+    if (!(bm = AllocBitMap(d->width, d->height, 8, BMF_CLEAR, NULL)))
+        return NULL;
     if (!(chunky = AllocVec(d->width * d->height, MEMF_ANY))) {
-        *nomem = TRUE;
+        FreeBitMap(bm);
         return NULL;
     }
+    *nomem = FALSE;
     if (dt_service_open(&svc, "media.decode/1")) {
         memset(buf, 0, sizeof buf);
         buf[1].ob_Data = chunky;
         buf[1].ob_Length = d->width * d->height;
         if (dt_service_call(&svc, MD_VFRAME, d->handle, 2, buf, extra, NULL, NULL) == OSERR_OK) {
-            if ((bm = AllocBitMap(d->width, d->height, 8, BMF_CLEAR, NULL)) != NULL) {
-                InitRastPort(&rp);
-                rp.BitMap = bm;
-                WriteChunkyPixels(&rp, 0, 0, d->width - 1, d->height - 1, chunky, d->width);
-            } else
-                *nomem = TRUE;
+            InitRastPort(&rp);
+            rp.BitMap = bm;
+            WriteChunkyPixels(&rp, 0, 0, d->width - 1, d->height - 1, chunky, d->width);
+            ok = TRUE;
         }
         dt_service_close(&svc);
     }
     FreeVec(chunky);
+    if (!ok) {
+        FreeBitMap(bm);
+        bm = NULL;
+    }
     return bm;
 }
 
@@ -313,9 +320,16 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
         }
         return (ULONG)obj;
     }
-    case OM_DISPOSE:
-        freeData(INST_DATA(cl, o));
-        return DoSuperMethodA(cl, o, msg);
+    case OM_DISPOSE: {
+        /* animation.datatype stops its loader and player in its own
+         * OM_DISPOSE, and until then they may still be loading frames from
+         * the host, playing the sound or showing the key frame: so the
+         * superclass goes first, and what we own is freed after it. */
+        VideoData keep = *(VideoData *)INST_DATA(cl, o);
+        ULONG rc = DoSuperMethodA(cl, o, msg);
+        freeData(&keep);
+        return rc;
+    }
     case ADTM_LOADFRAME: {
         VideoData *d = INST_DATA(cl, o);
         struct adtFrame *alf = (struct adtFrame *)msg;
