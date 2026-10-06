@@ -368,11 +368,12 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
         return (ULONG)obj;
     }
     case OM_DISPOSE: {
-        WebMData *d = INST_DATA(cl, o);
-        ObtainSemaphore(&d->lock);
-        freeData(d);
-        ReleaseSemaphore(&d->lock);
-        return DoSuperMethodA(cl, o, msg);
+        /* The superclass stops its loader and player first (see openvideo);
+         * the decoder, the sound and the key frame are freed after it. */
+        WebMData keep = *(WebMData *)INST_DATA(cl, o);
+        ULONG rc = DoSuperMethodA(cl, o, msg);
+        freeData(&keep);
+        return rc;
     }
     case ADTM_LOADFRAME: {
         WebMData *d = INST_DATA(cl, o);
