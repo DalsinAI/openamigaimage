@@ -1,0 +1,9 @@
+# Build output from build.sh (regenerable)
+/out/
+/work/
+/tarballs/
+
+# Build output from Datatypes/build.sh (regenerable)
+/Datatypes/out/
+/Datatypes/work/
+/Datatypes/tarballs/
