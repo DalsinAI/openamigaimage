@@ -6,7 +6,7 @@ GCC programs, and the project's datatypes: `webp.datatype`, `webm.datatype`, `op
 ports, made for [OpenBrowser](https://github.com/DalsinAI/openamigabrowser),
 the WebKit browser for AmigaOS 3.2.
 
-**Status:** Working: all three libraries build, and the smoke test's round trips pass on the bench. The WebP and WebM datatypes decode on the bench exactly as on a PC.
+**Status:** Working: all three libraries build, and the smoke test's round trips pass on the bench. The WebP and WebM datatypes decode on the bench exactly as on x86 cores.
 
 This repository holds the Amiga build, not zlib, libpng, libjpeg, libwebp, libvpx, libxmp itself: a build script,
 a smoke test and the upstream licences.
@@ -28,7 +28,7 @@ for the library goes to its authors; see `upstream/` for their notices.
 ## What the Amiga port changes
 
 - No source changes. zlib is Chromium's copy of 1.3.1 (the one in AROS's ports cache), built with its plain C code and without Chromium's symbol renaming. libpng uses its prebuilt `pnglibconf.h`; libjpeg its `jconfig.txt`.
-- AC090's native helpers (`AC_HELPERS=1`; `AC_HELPERS=0` builds the libraries as before; the default, `auto`, is 1 when the pinned amigachrome-guest commit is to hand and 0 otherwise, and says which). zlib's checksums and the big copies and fills in all three libraries go through amigachrome-guest's `common/amiga/ac_helpers`: magic functions that AmigaChrome's AC090 runs as host code, and that run as 68k code written for the 68020 and 68040 on a real Amiga. In AC090's JIT (68040, 64 KB calls, on our cloud test machine, 6 October 2026) crc32 ran at about 20 GB/s against 130 MB/s for zlib's own braided crc32 as 68k code, adler32 at about 20 GB/s against 1.1 GB/s, and a copy at about 33 GB/s against 2 (a longword loop) to 5 (MOVEM). Build flags and our own small files in `achelpers/` do it, not changes to the libraries:
+- AC090's native helpers (`AC_HELPERS=1`; `AC_HELPERS=0` builds the libraries as before; the default, `auto`, is 1 when the pinned amigachrome-guest commit is to hand and 0 otherwise, and says which). zlib's checksums and the big copies and fills in all three libraries go through amigachrome-guest's `common/amiga/ac_helpers`: magic functions that AmigaChrome's AC090 runs as x86 or ARM64 code, and that run as 68k code written for the 68020 and 68040 on a real Amiga. In AC090's JIT (68040, 64 KB calls, on the Team's x86 cores in the cloud, 6 October 2026) crc32 ran at about 20 GB/s against 130 MB/s for zlib's own braided crc32 as 68k code, adler32 at about 20 GB/s against 1.1 GB/s, and a copy at about 33 GB/s against 2 (a longword loop) to 5 (MOVEM). Build flags and our own small files in `achelpers/` do it, not changes to the libraries:
   - `achelpers/zlibsums.sh` compiles zlib's own `crc32`, `crc32_z`, `adler32` and `adler32_z` under other names (`oai_zlib_*`), and `achelpers/ac_zlib.c` takes the public names: a buffer of 32 bytes or more goes to the helpers, a shorter one (or none) to zlib's own, with zlib's results for every call. So inflate's and deflate's checks, the gz functions and libpng's chunk CRCs all use them. Chromium's `copy_with_crc` (deflate's gzip path) calls crc32 inside `crc32.c`, so it moves to `ac_zlib.c` too when it is the plain copy and crc32 we expect; the script says which. zlib's API and ABI are unchanged (`crc32_combine` and the rest are zlib's own).
   - `achelpers/ac_string.h` is forced (`-include`) into every compile of the three libraries: `memcpy`, `memmove` and `memset` calls of 64 bytes or more (zlib's window, libpng's rows, libjpeg's buffers) go to the helpers, smaller ones stay GCC's own code.
   - The helper objects go into each of `libz.a`, `libpng.a` and `libjpeg.a`, so link lines stay as they were.
@@ -110,7 +110,7 @@ from the libraries above:
 - `openvideo.datatype`: MP4, MKV, AVI, WMV and MPEG video, sent a frame at a
   time by a Cradle through `media.decode/1`.
 
-Both decode on the bench exactly as their libraries do on a PC. Installing,
+Both decode on the bench exactly as their libraries do on x86 cores. Installing,
 building and the test results are in [Datatypes/README.md](Datatypes/README.md).
 
 ## Known issues
