@@ -1,0 +1,13 @@
+--- a/src/demux/demux.c
++++ b/src/demux/demux.c
+@@ -935,6 +935,10 @@
+   if (chunk_num <= count) {
+     const uint8_t* const mem_buf = dmux->mem.buf;
+     const Chunk* const chunk = GetChunk(dmux, fourcc, chunk_num);
++    // GetChunk() returns NULL when it runs off the list; ChunkCount() has
++    // just counted at least chunk_num matching chunks, but the compiler
++    // cannot know that (GCC replaced the NULL read with a trap).
++    if (chunk == NULL) return 0;
+     iter->chunk.bytes = mem_buf + chunk->data.offset + CHUNK_HEADER_SIZE;
+     iter->chunk.size  = chunk->data.size - CHUNK_HEADER_SIZE;
+     iter->num_chunks  = count;

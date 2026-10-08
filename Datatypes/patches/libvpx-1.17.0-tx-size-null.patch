@@ -1,0 +1,22 @@
+--- a/vp9/decoder/vp9_decodemv.c
++++ b/vp9/decoder/vp9_decodemv.c
+@@ -65,8 +65,17 @@
+                                      TX_SIZE max_tx_size, vpx_reader *r) {
+   FRAME_COUNTS *counts = xd->counts;
+   const int ctx = get_tx_size_context(xd);
+-  const vpx_prob *tx_probs = get_tx_probs(max_tx_size, ctx, &cm->fc->tx_probs);
+-  int tx_size = vpx_read(r, tx_probs[0]);
++  const vpx_prob *tx_probs;
++  int tx_size;
++  /* get_tx_probs() and get_tx_counts() have tables for TX_8X8 to TX_32X32
++     only and return NULL for any other size. read_tx_size() calls this for
++     blocks of 8x8 or more, whose largest transform is never 4x4, but the
++     compiler cannot know that (GCC replaced the NULL read with a trap). A
++     4x4 largest transform leaves 4x4 as the only size, with nothing to
++     read; none is larger than 32x32. */
++  if (max_tx_size < TX_8X8 || max_tx_size > TX_32X32) return TX_4X4;
++  tx_probs = get_tx_probs(max_tx_size, ctx, &cm->fc->tx_probs);
++  tx_size = vpx_read(r, tx_probs[0]);
+   if (tx_size != TX_4X4 && max_tx_size >= TX_16X16) {
+     tx_size += vpx_read(r, tx_probs[1]);
+     if (tx_size != TX_8X8 && max_tx_size >= TX_32X32)

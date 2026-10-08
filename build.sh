@@ -31,7 +31,12 @@ CC="$P/bin/m68k-amigaos-gcc"
 CXX="$P/bin/m68k-amigaos-g++"
 AR="$P/bin/m68k-amigaos-ar"
 CPU=${OS32_CPU_FLAGS:-"-m68020 -m68881 -mcrt=nix20"}
-CFLAGS="-O2 $CPU -D_DEFAULT_SOURCE=1 -D_POSIX_TIMERS=1 -D_POSIX_REALTIME_SIGNALS=1 -fno-common"
+# Address 0 is memory on an Amiga (exec's pointer is at 4): without
+# -fno-delete-null-pointer-checks GCC drops null checks after a pointer is
+# used and puts a trap (TRAP #7, Software Failure 80000027) on any path it
+# proves reads or writes through a null pointer. Every compile here (C and
+# C++, the helpers and zlib's checksums too) takes it.
+CFLAGS="-O2 $CPU -fno-delete-null-pointer-checks -D_DEFAULT_SOURCE=1 -D_POSIX_TIMERS=1 -D_POSIX_REALTIME_SIGNALS=1 -fno-common"
 AC_HELPERS=${AC_HELPERS:-auto}
 case "$AC_HELPERS" in 0|1|auto) ;; *) echo "AC_HELPERS must be 0, 1 or auto, not $AC_HELPERS"; exit 2 ;; esac
 if [ "$AC_HELPERS" = auto ]; then          # on when the pinned amigachrome-guest commit is to hand

@@ -32,8 +32,14 @@ fi
 WORK="$HERE/work"
 CC="$P/bin/m68k-amigaos-gcc"
 AR="$P/bin/m68k-amigaos-ar"
+# Address 0 is memory on an Amiga (exec's pointer is at 4): without
+# -fno-delete-null-pointer-checks GCC drops null checks after a pointer is
+# used and puts a trap (TRAP #7, Software Failure 80000027) on any path it
+# proves reads or writes through a null pointer. Every 68k compile here
+# (libvpx's too) takes it, so the code behaves as on older compilers.
+NONULL=-fno-delete-null-pointer-checks
 # No -m68881: a datatype must load on a 68020 without an FPU too.
-CFLAGS="-O2 -m68020 -fomit-frame-pointer -DNDEBUG -DWORDS_BIGENDIAN -Wall -Wno-pointer-sign"
+CFLAGS="-O2 -m68020 -fomit-frame-pointer $NONULL -DNDEBUG -DWORDS_BIGENDIAN -Wall -Wno-pointer-sign"
 mkdir -p "$OUT/Classes/DataTypes" "$OUT/Devs/DataTypes" "$WORK"
 
 # AC090's native helpers for common/dtlib.c (realloc's copy, calloc's
@@ -73,8 +79,10 @@ compile() {
 # --- webp.datatype ------------------------------------------------------------
 unpack libwebp libwebp-1.6.0.tar.gz e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564
 W="$WORK/libwebp/libwebp-1.6.0"
-# No floating point in the decoder (see the patch).
-(cd "$W" && patch -p1 -s < "$HERE/patches/libwebp-1.6.0-no-float.patch")
+# No floating point in the decoder (see the patch), and no null read in
+# the demuxer's chunk iterator (see the patch).
+(cd "$W" && patch -p1 -s < "$HERE/patches/libwebp-1.6.0-no-float.patch" \
+    && patch -p1 -s < "$HERE/patches/libwebp-1.6.0-demux-null-chunk.patch")
 # The decoder, the demuxer (animated and extended files) and the shared code.
 # The SSE, NEON and MIPS files compile to nothing on 68k and are left out.
 XFLAGS="-I$W -I$W/src" compile "$W" "$WORK/obj-libwebp" \
@@ -100,11 +108,13 @@ echo "Devs/DataTypes/WebP: $(wc -c < "$OUT/Devs/DataTypes/WebP") bytes"
 # --- webm.datatype ------------------------------------------------------------
 unpack libvpx libvpx-1.17.0.tar.gz 1020f184046187baa2985dbde38e0691f49c44088bca7a1842b0236c6081dc0a
 V="$WORK/libvpx/libvpx-1.17.0"
-# Amiga objects align to at most 8 bytes (see the patch).
-(cd "$V" && patch -p1 -s < "$HERE/patches/libvpx-1.17.0-amiga-align.patch")
+# Amiga objects align to at most 8 bytes, and VP9's transform size reader
+# never reads through a null table (see the patches).
+(cd "$V" && patch -p1 -s < "$HERE/patches/libvpx-1.17.0-amiga-align.patch" \
+    && patch -p1 -s < "$HERE/patches/libvpx-1.17.0-tx-size-null.patch")
 # The VP8 and VP9 decoders in plain C: no encoders, threads or tools.
 mkdir -p "$WORK/libvpx-build"
-(cd "$WORK/libvpx-build" && CROSS="$P/bin/m68k-amigaos-" CFLAGS="-O2 -m68020 -fomit-frame-pointer" \
+(cd "$WORK/libvpx-build" && CROSS="$P/bin/m68k-amigaos-" CFLAGS="-O2 -m68020 -fomit-frame-pointer $NONULL" \
     "$V/configure" --target=generic-gnu --disable-vp8-encoder --disable-vp9-encoder --enable-vp8-decoder \
     --enable-vp9-decoder --disable-examples --disable-tools --disable-docs --disable-unit-tests \
     --disable-multithread --disable-runtime-cpu-detect --disable-install-docs --disable-install-bins \
@@ -272,7 +282,7 @@ $CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/openmodule.datatype" \
 echo "openmodule.datatype: $(wc -c < "$OUT/Classes/DataTypes/openmodule.datatype") bytes"
 # modbench (tests/modbench.c): libxmp's mixing time on this Amiga, a plain
 # Shell program, left in work/.
-$CC -O2 -m68020 -fomit-frame-pointer -I"$X/include" -DLIBXMP_STATIC -o "$WORK/modbench" \
+$CC -O2 -m68020 -fomit-frame-pointer $NONULL -I"$X/include" -DLIBXMP_STATIC -o "$WORK/modbench" \
     "$HERE/tests/modbench.c" "$WORK"/obj-openmodule/openmodule_novorbis.o "$WORK/libxmp.a" -lm
 moddesc() {      # FILE NAME ID PATTERN MASK...
     f=$1; n=$2; i=$3; pat=$4; shift 4
