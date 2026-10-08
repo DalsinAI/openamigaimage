@@ -1,14 +1,17 @@
 # Datatypes
 
 `webp.datatype`, `webm.datatype`, `openpicture.datatype`,
-`opensound.datatype`, `opendoc.datatype` and `openvideo.datatype` for
-AmigaOS 3.x, by Dalsin Limited. They let any datatypes program (MultiView,
-OpenBrowser, a picture viewer, a player) open WebP pictures, WebM video,
-AVIF, HEIC, JPEG XL, camera RAW, Photoshop and GIMP pictures, FLAC, Ogg
-Vorbis, Opus, AAC, ALAC, WMA and MP3 sounds, MIDI, SID and PC tracker
-tunes, office documents, PostScript, e-books, and MP4, MKV, AVI, WMV and
-MPEG video. They run on a 68020 or better, with or without an FPU. WebP and
-WebM need no other libraries; the others are decoded by a Cradle (below).
+`opensound.datatype`, `openmodule.datatype`, `opendoc.datatype` and
+`openvideo.datatype` for AmigaOS 3.x, by Dalsin Limited. They let any
+datatypes program (MultiView, OpenBrowser, OpenPlay, a picture viewer) open
+WebP pictures, WebM video, AVIF, HEIC, JPEG XL, camera RAW, Photoshop and
+GIMP pictures, FLAC, Ogg Vorbis, Opus, AAC, ALAC, WMA and MP3 sounds, MIDI
+and SID tunes, music modules (ProTracker MOD, MED and OctaMED, Oktalyzer,
+DigiBooster, FastTracker 2 XM, Scream Tracker 3 S3M, Impulse Tracker IT and
+more), office documents, PostScript, e-books, and MP4, MKV, AVI, WMV and
+MPEG video. They run on a 68020 or better, with or without an FPU. WebP,
+WebM and music modules need no other libraries and play on the Amiga
+itself; the others are decoded by a Cradle (below).
 
 **Status:** Working on the bench: both decode exactly as the same libraries
 do on a PC. Not yet run on real Amiga hardware; WebM playback inside MultiView
@@ -21,6 +24,7 @@ is not yet checked (see Tested).
 | `webp.datatype` | picture | libwebp 1.6.0 | Lossy, lossless and alpha WebP, through picture.datatype's 24-bit mode (32-bit with alpha). An animated WebP shows its first frame. |
 | `openpicture.datatype` | picture | the `media.decode/1` service | AVIF and HEIC/HEIF (iPhone photos), JPEG XL, camera RAW (Canon, Nikon, Sony, DNG and more), Photoshop PSD, GIMP XCF, OpenEXR, Radiance HDR, QOI, DDS, JPEG 2000, OpenRaster and Krita (their flattened picture), comic books (CBZ, the first page), SVG (drawn at its own size) and TrueType/OpenType fonts (a sample sheet), decoded on the services card or a paired Cradle and sent back as 32-bit ARGB, scaled down to fit `ENV:OpenImage/MaxSide` (default 4096). A sequence shows its first picture. |
 | `opensound.datatype` | sound | the `media.decode/1` service | FLAC, Ogg (Vorbis, Opus), AAC/M4A, ALAC, WMA and MP3; MIDI (played through FluidSynth on the Cradle), C64 SID tunes (the first three minutes, through sidplayfp) and XM, IT and S3M modules (libopenmpt), sent back as 16-bit PCM at a rate Paula plays (`ENV:OpenImage/SoundRate`, default 28000 Hz: 44.1 kHz comes as 22.05 kHz). 16-bit stereo with sound.datatype V44 or newer, else 8-bit mono. |
+| `openmodule.datatype` | sound | libxmp 4.7.3 | Music modules, played on the Amiga itself: ProTracker, NoiseTracker and SoundTracker MODs (M.K., M!K!, FLT4, FLT8, 2CHN to 32CH, and 15-instrument SoundTracker by its name), MED and OctaMED (MMD0 to MMD3, MED 2 to 4), Oktalyzer, DigiBooster and DigiBooster Pro, FastTracker 2 XM, Scream Tracker 3 S3M and Impulse Tracker IT (libxmp reads some 60 module formats in all; a descriptor for another is all it takes). Streamed: mixed an eighth of a second at a time into 8-bit stereo on two Paula channels by a player process of its own, so a song starts at once and never sits in memory whole. The module's title and length show; play, pause, stop, volume and repeat work as for a sound (`openmodule/DESIGN.md`). |
 | `opendoc.datatype` | picture | the `doc.render/1` service | DOCX, XLSX, PPTX, OpenDocument, Word/Excel/PowerPoint 97, RTF, WordPerfect, PostScript and EPS, EPUB e-books, Markdown and CSV, laid out by LibreOffice or Apache OpenOffice (Ghostscript for PostScript) on the Cradle and shown as their pages one under the other, `ENV:OpenImage/DocWidth` pixels wide (default 800), the first `ENV:OpenImage/DocPages` pages (default 8). |
 | `openvideo.datatype` | animation | the `media.decode/1` service | MP4/MOV, MKV, AVI, WMV, MPEG and FLV video, and animated PNG (H.264, HEVC, AV1, VP9, MPEG-4, MPEG-1/2, WMV), kept open on the Cradle and sent a frame at a time in webm.datatype's 256 colours, scaled to fit `ENV:OpenImage/VideoWidth` x `VideoHeight` (default 640 x 480), with its sound as 8-bit mono. |
 | `webm.datatype` | animation | libvpx 1.17.0 | WebM video, VP8 or VP9, decoded frame by frame as the animation plays. Frames are shown in 256 colours (a 6x6x6 colour cube with ordered dithering), so they play on any screen. Sound through `media.decode/1` when a card or Cradle offers it. |
@@ -59,6 +63,8 @@ Copy the files from `out/` (after building) to the same places on the Amiga:
 | `Devs/DataTypes/AVIF`, `AVIS`, `HEIC`, `HEIX`, `HEIF`, `JXL`, `JXL-ISO`, `RAW`, `PSD`, `XCF`, `EXR`, `HDR`, `HDR-Bin`, `QOI`, `DDS`, `JP2`, `J2K`, `ORA`, `KRA`, `CBZ`, `SVG`, `TTF`, `OTF`, `OTF-TT` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/opensound.datatype` | `SYS:Classes/DataTypes/` |
 | `Devs/DataTypes/FLAC`, `Ogg`, `M4A`, `M4B`, `WMA`, `MP3-ID3`, `AAC`, `MIDI`, `PSID`, `RSID`, `XM`, `IT`, `S3M` | `DEVS:DataTypes/` |
+| `Classes/DataTypes/openmodule.datatype` | `SYS:Classes/DataTypes/` |
+| `Devs/DataTypes/ProTracker`, `ProTracker-100`, `StarTrekker`, `StarTrekker-8`, `MOD-xCHN`, `MOD-xxCH`, `SoundTracker`, `OctaMED`, `MED-2`, `MED-3`, `MED-4`, `Oktalyzer`, `DigiBooster`, `DigiBooster-Pro`, `Module-XM`, `Module-S3M`, `Module-IT` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/opendoc.datatype` | `SYS:Classes/DataTypes/` |
 | `Devs/DataTypes/DOCX`, `XLSX`, `PPTX`, `ODF`, `DOC`, `XLS`, `PPT`, `RTF`, `WPD`, `PS`, `EPS`, `EPUB`, `CSV`, `Markdown` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/openvideo.datatype` | `SYS:Classes/DataTypes/` |
@@ -68,13 +74,15 @@ Copy the files from `out/` (after building) to the same places on the Amiga:
 `openvideo.datatype` also need `openservice.device` in `DEVS:` (OpenUp's
 OpenService part installs it) and a services card or a paired Cradle.
 
-Then reboot, or run `AddDataTypes DEVS:DataTypes/WebP DEVS:DataTypes/WebM`.
+`openmodule.datatype` needs nothing else: no card and no Cradle.
+
+Then reboot, or run `AddDataTypes REFRESH`.
 
 ## Building
 
 You need the os32-gcc16 compiler (bebbo's amiga-gcc on GCC 16.2 with libnix;
 see DalsinAI/openamigabrowser `stove/`), Python 3 for the descriptor files,
-and the libwebp and libvpx tarballs listed in `../SOURCES`, in the
+and the libwebp, libvpx and libxmp tarballs listed in `../SOURCES`, in the
 repository's `tarballs/` folder; with `AC_HELPERS=1`, also amigachrome-guest
 at the commit in `../AMIGACHROME_GUEST_PINNED_COMMIT` (see the main README's
 Building). Then:
@@ -84,7 +92,9 @@ Building). Then:
 ```
 
 The datatypes and their descriptors land in `out/` (set `PREFIX` to change
-that). `JOBS` sets libvpx's parallel jobs.
+that). `JOBS` sets libvpx's parallel jobs. The build also leaves
+`work/modbench` (`tests/modbench.c`), which times libxmp's mixing on an
+Amiga.
 
 How they are made:
 
@@ -105,7 +115,18 @@ How they are made:
 - **No floating point.** libwebp's one use of it, setting up dithering, is
   patched to integer arithmetic (`patches/`), so the datatypes need neither
   an FPU nor the ROM math libraries (which change the FPU's precision in the
-  calling task).
+  calling task). The one exception is `openmodule.datatype`: libxmp works
+  out periods in floating point, through libnix's soft floating point and
+  the ROM math libraries, and does all its work in the datatype's own
+  player process, which opens those libraries for itself, so the calling
+  program's FPU is never touched.
+- **openmodule.datatype streams.** sound.datatype 47 can only play a
+  sample that is all in memory, so openmodule is what the V44 autodoc
+  calls a streaming subclass: it answers `DTM_TRIGGER` itself and plays
+  through audio.device, four buffers ahead, from a process of its own
+  (`openmodule/DESIGN.md`). libxmp is built unchanged, with all its
+  loaders; its depackers, ProWizard and Ogg Vorbis samples are left out
+  (`openmodule/xmpglue.c`, `openmodule/novorbis.c`).
 - **Descriptors** are written by `common/mkdtdesc.py`, which reproduces the
   system's own `DEVS:DataTypes/PNG` byte for byte.
 
@@ -142,6 +163,55 @@ MultiView opens the VP8 clip and shows its first frame with the animation
 controls. Playback inside MultiView, and running on real Amiga hardware,
 are not yet checked.
 
+### openmodule.datatype
+
+On AmigaOS 3.2.3 on AC090 (68040 with FPU), the modlab scratch copy of an
+OpenUp install, 8 October 2026, with modules made by
+`tests/make-modules.py` (synthesised samples, a 30-second tune; checked on
+the PC first by `tests/modbench.c` built against libxmp for the host,
+which renders each to a WAV file). `tests/dtsound.c` opens each through
+datatypes.library and plays it as OpenPlay does (`DTM_TRIGGER`: play,
+pause, play, stop), while the PC records the instance's Paula output:
+
+```
+mods/mod.ot-4ch: datatype=openmodule descriptor="ProTracker module" name="openmodule 4ch test" kind="Protracker M.K." frames=857948 rate=27928 period=127 sample=NULL seconds=30
+mods/mod.ot-8ch: datatype=openmodule descriptor="FastTracker MOD" name="openmodule 8ch test" kind="Scream Tracker 8CHN" frames=857948 rate=27928 period=127 sample=NULL seconds=30
+mods/mod.ot-st15: datatype=openmodule descriptor="SoundTracker module" name="openmodule st15" kind="unknown tracker 15 instrument" frames=857948 rate=27928 period=127 sample=NULL seconds=30
+mods/med.ot-mmd0: datatype=openmodule descriptor="MED module" name="openmodule MMD0 test" kind="OctaMED 3.00 MMD0" frames=857948 rate=27928 period=127 sample=NULL seconds=30
+mods/ot-okt.okta: datatype=openmodule descriptor="Oktalyzer module" name="ot-okt.okta" kind="Oktalyzer" frames=857948 rate=27928 period=127 sample=NULL seconds=30
+mods/ot-xm.xm: datatype=openmodule descriptor="FastTracker 2 module" name="openmodule XM test" kind="openmodule tests XM 1.04" frames=857948 rate=27928 period=127 sample=NULL seconds=30
+mods/mod.random: NEWDTOBJECT_FAIL ioerr=2008
+```
+
+(`ot-xm.xm` with opensound.datatype installed too; `mod.random` is 3000
+random bytes, refused as invalid data.) Each recording has sound where it
+should, silence through the second's pause, and the same spectrum as the
+PC's render of the same module at the same rate (correlation of the log
+band energies 1.00 for all six; left and right in the same balance; the
+loudness over time correlates 0.6 to 0.9 with the PC's). Setting
+`SDTA_Volume` to 16 while it plays brings the level to 0.25 of what it
+was at once; a song left to play to its end signals `SDTA_SignalTask`
+after its 30.7 seconds. In OpenPlay the module plays as soon as it opens,
+the status line names `openmodule.datatype - 27928 Hz - ProTracker
+module` and the bar shows 0:30; in MultiView it shows the sound icon and
+plays when clicked.
+
+`work/modbench` (10 seconds of each module, 8-bit stereo, as the datatype
+mixes; share of one AC090 CPU):
+
+| Module | Voices | 28 kHz linear | 28 kHz nearest | 16 kHz nearest |
+| --- | --- | --- | --- | --- |
+| ProTracker M.K. | 4 | 22.6 % | 12.4 % | 8.9 % |
+| FastTracker 8CHN MOD | 8 | 33.9 % | 14.8 % | 12.2 % |
+| OctaMED MMD0 | 4 | 21.7 % | | 8.4 % |
+| Oktalyzer | 4 | 24.6 % | | 8.7 % |
+| FastTracker 2 XM | 6 | 29.4 % | | 10.6 % |
+
+Not yet checked: real Amiga hardware (a stock 68020 above all, where the
+16 kHz default is a guess), DigiBooster, S3M, IT and the MED 2 to 4 and
+StarTrekker descriptors with real files (their masks are libxmp's own
+tests), modules from the wider world, `DTA_Repeat` and `DTA_Immediate`.
+
 ## Known issues
 
 - picture.datatype 47.19 keeps the alpha of a picture's last pixel only when
@@ -162,9 +232,21 @@ are not yet checked.
 - Text formats (SVG, Radiance HDR's header, PostScript, RTF, CSV and
   Markdown) have text descriptors (DTF_ASCII): datatypes.library only tries
   those on a file that reads as text.
-- The ProTracker MOD and MED descriptors are left out on purpose: the
-  Amiga plays those itself. Pictures in JPEG, PNG and GIF also stay with the
-  system's datatypes; `media.decode/1` decodes them for OpenBrowser.
+- Pictures in JPEG, PNG and GIF stay with the system's datatypes;
+  `media.decode/1` decodes them for OpenBrowser.
+- AmigaOS 3.2.3's datatypes.library tries a longer mask first and, between
+  equal masks, priority 0 before higher ones (`openmodule/DESIGN.md`), so
+  the priority 1 given to APNG, MKV, Camera RAW, SVG, CSV and Markdown
+  above does not put them first there; not yet re-checked for those.
+- `openmodule.datatype`: PowerPacker and XPK packed modules don't open
+  (libxmp's depackers are left out), nor XM files with Ogg Vorbis samples.
+  A file named `mod.something` or `something.mod` that no other datatype
+  knows is offered to it and refused as invalid data. Plays through Paula
+  only (8-bit, two channels), not AHI. Saving writes the module as it
+  came; there is no copy to the clipboard. Each module playing takes two
+  of Paula's four channels, so two can play at once and a third stays
+  silent. libxmp's floating point goes through the ROM math libraries, in
+  the player process only.
 - `opensound.datatype`: not yet run on the bench. To check there: the
   sample length sound.datatype V44+ expects for 16-bit samples (frames are
   given), and that it frees the sample with FreeVec(). The Ogg and WMA
@@ -189,8 +271,11 @@ are not yet checked.
 
 ## Licence
 
-The datatype code (`build.sh`, `common/`, `include/`, `webp/`, `webm/`, `openpicture/`, `opensound/`, `opendoc/`, `openvideo/`, `tests/`) is
+The datatype code (`build.sh`, `common/`, `include/`, `webp/`, `webm/`, `openpicture/`, `opensound/`, `openmodule/`, `opendoc/`, `openvideo/`, `tests/`) is
 MIT, Copyright (c) 2026 Dalsin Limited, as the rest of this repository.
 libwebp and libvpx keep their BSD licences and the WebM Project's patent
 grants (`../upstream/libwebp/`, `../upstream/libvpx/`); a patch to their
-source stays under their licence.
+source stays under their licence. libxmp, built unchanged into
+`openmodule.datatype`, keeps its MIT licence (Copyright (C) 1996-2026
+Claudio Matsuoka and Hipolito Carraro Jr; `../upstream/libxmp/COPYING`,
+and `CREDITS` for the code it carries from others).
