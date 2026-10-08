@@ -126,6 +126,14 @@ How they are made:
   the ROM math libraries, and does all its work in the datatype's own
   player process, which opens those libraries for itself, so the calling
   program's FPU is never touched.
+- **Address 0 is memory.** On an Amiga, reading address 0 is not a fault
+  (exec's pointer is at 4), so every 68k compile here, libvpx's too, has
+  `-fno-delete-null-pointer-checks`: without it GCC drops null checks after
+  a pointer is used and puts a trap (Software Failure 80000027) on any path
+  it proves goes through a null pointer. The two such paths GCC 16 found
+  are patched (`patches/`): VP9's transform size reader takes a 4x4
+  largest transform without its NULL table, and libwebp's demuxer returns
+  no chunk rather than read one it did not find.
 - **openmodule.datatype streams.** sound.datatype 47 can only play a
   sample that is all in memory, so openmodule is what the V44 autodoc
   calls a streaming subclass: it answers `DTM_TRIGGER` itself and plays
