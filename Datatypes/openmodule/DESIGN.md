@@ -42,9 +42,30 @@ process** of its own (`openmodule player`, priority 2, 64 KB of stack):
   process, which loads the module with libxmp
   (`xmp_load_module_from_memory`) and answers with its title, kind and
   length. A file libxmp can't read fails `OM_NEW` (`DTERROR_INVALID_DATA`),
-  as any datatype does. It then chooses what mixes the module: this CPU,
-  a cores board core or media.decode/1 (section 7).
-- On `STM_PLAY` it allocates one left and one right Paula channel
+  as any datatype does. It then chooses what mixes the module (a cores
+  board core, media.decode/1, or this CPU: section 7) and where the sound
+  goes: AHI when it is installed, else Paula (section 3).
+- **AHI** (the Team, 8 October 2026: "all mods should open AHI"): the
+  player opens `ahi.device` unit 0, the unit AHI prefs sets up for music
+  (on AmigaChrome, ACAHI's Host mix mode), once for the object's life, and
+  mixes 16-bit stereo at that unit's own rate (its `AHIU` chunk in
+  `ENV:Sys/ahi.prefs`, 44100 Hz here), so AHI does not resample. On
+  `STM_PLAY` it sends two `CMD_WRITE` requests of half a second, the
+  second linked to the first (`ahir_Link`); each time one comes back, the
+  next half second is mixed into it and it is sent again, linked to the
+  one playing. That is AHI's own double buffering through its device
+  interface. Why the device and not the library (`AHI_AllocAudio`,
+  `AHI_LoadSound` with `AHIST_DYNAMICSAMPLE`): the device shares the
+  unit with every other program and uses the mode and rate the user chose
+  in AHI prefs, while the library takes a mode for itself, mostly
+  exclusively, and needs a SoundFunc running in AHI's interrupt to keep
+  the buffer fed. Replies are taken with `GetMsg` from the player's port
+  and played-out requests refilled in the order they were sent. Found on
+  3.2 with AHI 6.6: a third request linked to one still waiting (not yet
+  playing) was never played, so it stays at two of half a second (a
+  second queued).
+- Paula, without AHI (or with `ENV:OpenImage/ModuleOutput` set to
+  `paula`): on `STM_PLAY` it allocates one left and one right Paula channel
   (audio.device, allocation map 3, 5, 10, 12), mixes four buffers of an
   eighth of a second each (`xmp_play_buffer`, 8-bit stereo), splits each
   into a left and a right chip RAM buffer, queues them with `CMD_WRITE` on
@@ -54,15 +75,19 @@ process** of its own (`openmodule player`, priority 2, 64 KB of stack):
   chains queued writes through Paula's own double buffering, with no gap.
   Half a second is always queued, so a busy moment elsewhere does not
   break the sound.
-- `STM_PAUSE` stops the channels (`CMD_STOP`) and `STM_PLAY` starts them
-  again; `STM_STOP` returns the queue (`CMD_FLUSH`), frees the channels
-  for other programs and rewinds the song; `STM_REWIND` does both. Commands come
+- `STM_PAUSE` stops Paula's channels (`CMD_STOP`) and `STM_PLAY` starts
+  them again. On AHI, pause drops the two requests (what they held, up to
+  a second, is skipped: `CMD_STOP` would stop the whole unit, other
+  programs' sound too) and play sends new ones from where the mixing is.
+  `STM_STOP` returns the queue (`CMD_FLUSH` on Paula, `AbortIO` on AHI),
+  frees Paula's channels for other programs and rewinds the song; `STM_REWIND` does both. Commands come
   through a word in the object and `SIGBREAKF_CTRL_F`, so they can be given
   from any task (a click on the gadget comes from input.device's) and
   never wait for the mixer; the latest one wins.
-- `SDTA_Volume` is Paula's channel volume (0 to 64), changed at once with
-  `ADCMD_PERVOL` (only the first write of a start carries a volume, so the
-  queued ones do not undo it): it costs no mixing. `DTA_Repeat` loops the
+- `SDTA_Volume` is AHI's request volume (0 to 64 as 0 to 1.0), heard from
+  the next request (within a second), or Paula's channel volume, changed at
+  once with `ADCMD_PERVOL` (only the first write of a start carries a
+  volume, so the queued ones do not undo it). Neither costs mixing. `DTA_Repeat` loops the
   song (libxmp's loop count); without it the song ends at its end, the
   channels are freed, the song rewinds and `SDTA_SignalTask` is
   signalled.
@@ -85,28 +110,28 @@ player process opens them for itself, so the calling program's FPU state
 is never touched (the other datatypes here avoid the math libraries
 altogether for that reason).
 
-## 3. Why 8-bit stereo
+## 3. 16-bit through AHI, 8-bit through Paula
 
-sound.datatype 47 has no 16-bit playback (`SDTA_BitsPerSample` converts to
-8-bit), and openmodule plays through audio.device itself: Paula plays
-8-bit samples. libxmp mixes in 32 bits and clips once to 8 bits
-(`XMP_FORMAT_8BIT`), which is better than mixing to 16 and dropping the
-low byte later. Paula's 6-bit volume scales the result for free. A 14-bit
-mode (two channels a side at volumes 64 and 1) or AHI would give more
-depth; both need the other two channels or AHI's mixing, so they are left
-for later.
+With AHI, libxmp mixes 16-bit stereo (`AHIST_S16S`) and the sound keeps
+its depth: on AmigaChrome ACAHI takes it to the host as it is. Without AHI,
+sound.datatype 47 has no 16-bit playback either (`SDTA_BitsPerSample`
+converts to 8-bit), so openmodule plays through audio.device itself and
+Paula plays 8-bit samples: libxmp mixes in 32 bits and clips once to 8
+bits (`XMP_FORMAT_8BIT`), better than mixing to 16 and dropping the low
+byte later, and Paula's 6-bit volume scales it for free. The status line
+says which ("..., through AHI" or "..., through Paula (no AHI)").
 
 ## 4. Rate and interpolation
 
 | Setting | Default | Read from |
 | --- | --- | --- |
-| Mixing rate | 28000 Hz on a 68040 or 68060; 16000 Hz on a 68020 or 68030 | `ENV:OpenImage/SoundRate` (shared with opensound.datatype) |
+| Where it plays | AHI unit 0 when installed, else Paula | `ENV:OpenImage/ModuleOutput`: `paula` |
+| Mixing rate, AHI | AHI unit 0's rate (44100 Hz here); 48000 Hz asked of media.decode/1 | `ENV:Sys/ahi.prefs` |
+| Mixing rate, Paula | 28000 Hz on a 68040 or 68060; 16000 Hz on a 68020 or 68030 | `ENV:OpenImage/SoundRate` (shared with opensound.datatype) |
 | Interpolation | linear on a 68040 or 68060; none (nearest) on a 68020 or 68030 | `ENV:OpenImage/ModuleMix`: `nearest`, `linear` or `spline` |
 | Who mixes | the ladder (section 7) | `ENV:OpenImage/ModulePlayer`: `auto`, `cpu`, `cores` or `service` |
-| Too slow for this CPU | more than 50 % of it | `ENV:OpenImage/ModuleMaxLoad` (per cent) |
-| Too slow for a core | more than 85 % of the sound's own time | `ENV:OpenImage/ModuleCoreLoad` (per cent) |
 
-The rate is turned into a whole Paula period (PAL or NTSC, from the
+For Paula the rate is turned into a whole Paula period (PAL or NTSC, from the
 E clock) of at least 124, and libxmp mixes at exactly the rate that
 period plays, so pitch is exact: 28000 Hz becomes 27928 Hz (period 127)
 on PAL.
@@ -217,71 +242,73 @@ channels. That would cost a 68000 almost nothing, but leaves no channel for
 other sounds and gives up stereo placement; it is the next step if the
 mixing costs too much on a stock 68020.
 
-## 7. The ladder: this CPU, another core, a service
+## 7. The ladder: another core, a service, this CPU
 
-The Team's rule for heavy modules on slow Amigas (8 October 2026): "hand
-them to other cores first, then network services". Each object's player
-takes the first of these that is there and fast enough, when the module
-is opened:
+The Team, 8 October 2026: heavy modules on slow Amigas should go to
+"other cores first, then network services", and then "all playback
+should offload to Cradle / other cores". So every module, light or heavy,
+is mixed by the first of these that is there, chosen when it opens:
 
-1. **This CPU.** Any 68020 or better plays a module of four channels or
-   fewer here without a test. A bigger one plays here when its first eighth of
-   a second mixes in no more than `ModuleMaxLoad` (50 %) of its playing
-   time.
-2. **A cores board core** (AmigaChrome's Dalsin $DA15 product 7, up to
+1. **A cores board core** (AmigaChrome's Dalsin $DA15 product 7, up to
    eight translated 68040 cores, `cpu.m68k/1`), through
    `openmulticore.library` (DalsinAI/openamigamulticore) on
-   openservice.device. Each eighth of a second is one job: `om_job_mix`,
-   which calls `xmp_play_buffer` on a core, by `OMC_Run68k`. The board's
-   rules (AmigaChrome `CORES_BOARD.md`) are that a job calls no OS,
-   touches no Chip RAM and writes only its written buffers. libxmp
-   allocates nothing while it mixes, so the player loads and starts it
-   with an arena in use (`xmpglue.h`): every allocation libxmp makes comes
-   from one block of Fast RAM, and that block (a few hundred KB for the
-   test modules) is the job's one written buffer. Reads are permissive:
-   the code, libxmp's tables and the ROM math libraries its floating point
-   calls are read where they are. The main CPU sleeps in `OMC_Run68k`
-   while the core mixes. A core is used when the first job takes no more
-   than `ModuleCoreLoad` (85 %) of its sound's time. If a job fails (a
-   fault, a refusal, a timeout) the song stops and plays again on this CPU.
-3. **media.decode/1** on a services card or a paired Cradle (libopenmpt,
-   as opensound.datatype uses), through openservice.device: `DECODE` two
-   seconds at a time from a frame offset (`MEDIA_DECODE.md`: "a long sound
-   can come in pieces"). Each call costs a few hundred milliseconds, so on
-   this rung the buffers are a quarter of a second, and a second is queued.
-   It plays at the rate the service gives (24000 Hz for a 28000 Hz ask).
-4. **This CPU anyway**, when none of the others is there: the stats say
-   it is too slow.
+   openservice.device. Each chunk (half a second for AHI, an eighth for
+   Paula) is one job: `om_job_mix`, which calls `xmp_play_buffer` on a
+   core, by `OMC_Run68k`. The board's rules (AmigaChrome `CORES_BOARD.md`)
+   are that a job calls no OS, touches no Chip RAM and writes only its
+   written buffers. libxmp allocates nothing while it mixes, so the player
+   loads and starts it with an arena in use (`xmpglue.h`): every
+   allocation libxmp makes comes from one block of Fast RAM, and that block
+   (160 to 360 KB for the test modules) is the job's one written buffer.
+   Reads are permissive: the code, libxmp's tables and the ROM math
+   libraries its floating point calls are read where they are. The main
+   CPU sleeps in `OMC_Run68k` while the core mixes. The first job is the
+   test: if the board refuses it or it faults, the next rung plays; a job
+   that fails later stops the song, which plays again on this CPU.
+2. **media.decode/1** on a services card or a paired Cradle (libopenmpt,
+   as opensound.datatype uses), when there is no cores board: `DECODE`
+   two seconds at a time from a frame offset (`MEDIA_DECODE.md`: "a long
+   sound can come in pieces"), 48000 Hz for AHI (the service's rate for
+   Paula). Each call takes 0.1 to 0.5 s, so a second is always queued.
+3. **This CPU**, only when there is neither.
 
-The probes cost the first eighth of a second's mixing once or twice at
-open, then libxmp starts again from the top. The status line says which rung
-plays: `OIA_DecodedBy` ("this Amiga's CPU", "a cores board core
-(cpu.m68k/1)", "media.decode/1 through the Nursery") and `OIA_Stats` (the
-measured load), openamigaimage attributes in
-`../include/datatypes/openimage.h`. OpenPlay shows them.
+`ENV:OpenImage/ModulePlayer` (`cores`, `service`, `cpu`) forces one; a
+forced rung that is not there falls to the next. The status line says
+which rung plays and where the sound goes: `OIA_DecodedBy` ("a cores
+board core, through AHI", "media.decode/1 (the Nursery), through AHI",
+"this Amiga's CPU, through Paula (no AHI)") and `OIA_Stats` (the measured
+load), openamigaimage attributes in `../include/datatypes/openimage.h`.
+OpenPlay shows them.
 
 **Measured** on the modlab scratch copy (AmigaOS 3.2.3 on AC090, a 68040,
-with the cores board fitted: `"coresBoard": true`, eight translated
-cores), 8 October 2026, with `tests/dtsound.c LOAD=1`, which counts at
-the lowest priority while a module plays; three runs. "Main CPU" is how
-much of that counting playing took away. "Mixing" is the time spent
-mixing (or waiting for a core's job, or for the service) as a share of
-the sound's time:
+with the cores board fitted, `"coresBoard": true`, eight translated
+cores, and AHI 6.6 with ACAHI's Host mix mode on unit 0 at 44100 Hz),
+8 October 2026, with `tests/dtsound.c LOAD=1`, which counts at the lowest
+priority while a module plays: "main CPU" is how much of that counting
+playing took away. "Work" is the core's job time, the service's call time
+or this CPU's mixing time, as a share of the sound's time. Sound recorded
+from ACAHI's ring (`/dev/shm/amigachrome-native-8888.ahi`): no gaps but
+the pause the test gives, on every module and rung except the 32-channel
+XM forced onto this CPU; every recording has the same spectrum as libxmp's
+render on the PC (correlation of log band energies 0.99) and the same
+left and right balance.
 
-| Module | Rung | Mixing | Main CPU | Gaps |
-| --- | --- | --- | --- | --- |
-| ProTracker M.K., 4 voices | 1, this CPU (auto) | 21-22 % | 4-16 % | none |
-| FastTracker 8CHN MOD, 8 voices | 1, this CPU (auto: probe 34 %) | 33 % | 25-31 % | none |
-| FastTracker 2 XM, 32 voices | 1, this CPU (forced) | 108-127 % | 90 % | many: too slow |
-| FastTracker 2 XM, 32 voices | 2, a core (auto: probe here 113 %, on a core 83 %) | 21-56 % a job | 0-9 % | none |
-| ProTracker M.K., 4 voices | 2, a core (forced) | 8-12 % a job | 1-3 % | none |
-| FastTracker 2 XM, 32 voices | 3, media.decode/1 (forced) | 2 s pieces, 350-410 ms a call | 0-2 % | none |
-| ProTracker M.K., 4 voices | 3, media.decode/1 (forced) | 2 s pieces, 104-121 ms a call | 0-1 % | none |
+| Module | Rung 1, a core (auto) | | Rung 2, media.decode/1 (forced) | | Rung 3, this CPU (forced) | |
+| --- | --- | --- | --- | --- | --- | --- |
+| | work | main CPU | a 2 s call | main CPU | mixing | main CPU |
+| ProTracker M.K., 4 voices | 4-20 % | 0-2 % | 91-116 ms | 0 % | 26-27 % | 19-23 % |
+| FastTracker 8CHN MOD, 8 voices | 11-16 % | 0-3 % | 122-152 ms | 0-3 % | 43-44 % | 36-38 % |
+| OctaMED MMD0, 4 voices | 8-10 % | 0-5 % | 90-127 ms | 0-3 % | 28 % | 22 % |
+| FastTracker 2 XM, 6 voices | 7-20 % | 0-5 % | 105-196 ms | 2-6 % | 37 % | 29-34 % |
+| FastTracker 2 XM, 32 voices | 27-74 % | 0-3 % | 340-469 ms | 3-5 % | 152-153 % | 87 %, breaks up |
 
-A core's job time varies from run to run (21 % in one, 54-56 % in
-another): its completion is published by the main core's emulation
-thread at the end of a line (AmigaChrome's `CORES_BOARD.md`), so it
-probably depends on what the main core is doing.
+Two runs each (the first rung's numbers vary: a job's completion is
+published by the main core's emulation thread at the end of a line,
+`CORES_BOARD.md`, so it depends on what the main core is doing). Through
+Paula, without AHI (`ModuleOutput` `paula`), a 4-channel MOD on a core
+took 10-25 % a job and 2-6 % of the main CPU. A song played to its end
+signals `SDTA_SignalTask` after its 30.7 s; volume 16 of 64 set during a
+pause brings AHI's level to 0.24.
 
 AC090 interprets 32-bit multiplies (`MULS.L`, `MULU.L`) inline rather
 than translating them (its own log shows them, 35 million every five
@@ -290,12 +317,20 @@ sample, which is why linear mixing costs more than spline here (section
 6), on the main core and on the board's cores alike. Translating them is
 the largest gain for this datatype on AmigaChrome.
 
+**What it needs:** `openmulticore.library` in `LIBS:`, built with the os32
+stove (GCC 6.5) as its own `library/build.sh` does: built with os32-gcc16
+it passes jobs the wrong arguments (OMCTest's first job ran for minutes,
+even on the main CPU). It is not in OpenUp yet, so the first rung is there
+only where it is installed by hand.
+
 **Not yet:** the job runs the soft-float libxmp, whose floating point goes
 through the ROM math libraries (library code, read and run where it is).
 That works on the board, but it bends rule 1 (no library calls), and over
 the LAN (strict jobs) it would not. A libxmp built with `-m68881` for the
 core (the board's cores are 68040s with an FPU) would keep to the rule
 and be faster. A module bigger than about 4.5 MB needs an arena over the
-15 MB a job may write, so it skips rung 2. The ladder is chosen when a
-module opens. It does not move to another rung while the module plays,
-except from a core that fails.
+15 MB a job may write, so it skips the first rung. A Cradle on the LAN as
+the second rung is not measured. The rung is chosen when a module opens.
+It does not move while the module plays, except from a core that fails.
+On a real Amiga with neither a cores board nor a services card or Cradle,
+every module plays on its own CPU, as before.

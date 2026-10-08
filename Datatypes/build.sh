@@ -239,11 +239,11 @@ sounddesc IT "Impulse Tracker module" it $(chars "IMPM")
 sounddesc S3M "Scream Tracker module" s3m $(i=0; while [ $i -lt 44 ]; do printf 'ANY '; i=$((i+1)); done) $(chars "SCRM")
 
 # --- openmodule.datatype -----------------------------------------------------
-# Music modules played on the Amiga itself: libxmp mixes them a buffer at a
-# time in a player process of the object's own, onto two Paula channels
-# through audio.device (openmodule/DESIGN.md); a module too heavy for this
-# CPU goes to a cores board core (openmulticore.library, headers copied in
-# include/) or to media.decode/1 (dtservice). libxmp's loaders, all of
+# Music modules: libxmp mixes them a chunk at a time for a player process
+# of the object's own, which plays them through AHI (16-bit) or Paula
+# (openmodule/DESIGN.md). The mixing goes to a cores board core
+# (openmulticore.library, headers copied in include/), else to
+# media.decode/1 (dtservice), else stays on this CPU. libxmp's loaders, all of
 # them; no depackers or ProWizard (they write temporary files) and no Ogg
 # Vorbis samples (openmodule/xmpglue.c).
 unpack libxmp libxmp-4.7.3.tar.gz b6a98797e4fb9c9a705f5d53112aa5214561857e929a644928b9e658930d9440

@@ -24,7 +24,7 @@ is not yet checked (see Tested).
 | `webp.datatype` | picture | libwebp 1.6.0 | Lossy, lossless and alpha WebP, through picture.datatype's 24-bit mode (32-bit with alpha). An animated WebP shows its first frame. |
 | `openpicture.datatype` | picture | the `media.decode/1` service | AVIF and HEIC/HEIF (iPhone photos), JPEG XL, camera RAW (Canon, Nikon, Sony, DNG and more), Photoshop PSD, GIMP XCF, OpenEXR, Radiance HDR, QOI, DDS, JPEG 2000, OpenRaster and Krita (their flattened picture), comic books (CBZ, the first page), SVG (drawn at its own size) and TrueType/OpenType fonts (a sample sheet), decoded on the services card or a paired Cradle and sent back as 32-bit ARGB, scaled down to fit `ENV:OpenImage/MaxSide` (default 4096). A sequence shows its first picture. |
 | `opensound.datatype` | sound | the `media.decode/1` service | FLAC, Ogg (Vorbis, Opus), AAC/M4A, ALAC, WMA and MP3; MIDI (played through FluidSynth on the Cradle), C64 SID tunes (the first three minutes, through sidplayfp) and XM, IT and S3M modules (libopenmpt), sent back as 16-bit PCM at a rate Paula plays (`ENV:OpenImage/SoundRate`, default 28000 Hz: 44.1 kHz comes as 22.05 kHz). 16-bit stereo with sound.datatype V44 or newer, else 8-bit mono. |
-| `openmodule.datatype` | sound | libxmp 4.7.3 | Music modules, played on the Amiga itself: ProTracker, NoiseTracker and SoundTracker MODs (M.K., M!K!, FLT4, FLT8, 2CHN to 32CH, and 15-instrument SoundTracker by its name), MED and OctaMED (MMD0 to MMD3, MED 2 to 4), Oktalyzer, DigiBooster and DigiBooster Pro, FastTracker 2 XM, Scream Tracker 3 S3M and Impulse Tracker IT (libxmp reads some 60 module formats in all; a descriptor for another is all it takes). Streamed: mixed an eighth of a second at a time into 8-bit stereo on two Paula channels by a player process of its own, so a song starts at once and never sits in memory whole. The module's title and length show; play, pause, stop, volume and repeat work as for a sound. A module too heavy for this CPU goes to a cores board core (AmigaChrome's, through `openmulticore.library`), else to `media.decode/1` on a services card or a paired Cradle, and the datatype says which (`OIA_DecodedBy`, `include/datatypes/openimage.h`; `openmodule/DESIGN.md` section 7). |
+| `openmodule.datatype` | sound | libxmp 4.7.3 | Music modules, played on the Amiga itself: ProTracker, NoiseTracker and SoundTracker MODs (M.K., M!K!, FLT4, FLT8, 2CHN to 32CH, and 15-instrument SoundTracker by its name), MED and OctaMED (MMD0 to MMD3, MED 2 to 4), Oktalyzer, DigiBooster and DigiBooster Pro, FastTracker 2 XM, Scream Tracker 3 S3M and Impulse Tracker IT (libxmp reads some 60 module formats in all; a descriptor for another is all it takes). Streamed by a player process of its own, so a song starts at once and never sits in memory whole: 16-bit stereo through AHI (`ahi.device` unit 0, at its own rate), else 8-bit stereo on two Paula channels. Mixed on a cores board core (AmigaChrome's, through `openmulticore.library`), else by `media.decode/1` on a services card or a paired Cradle, else on this CPU, and the datatype says which (`OIA_DecodedBy`, `include/datatypes/openimage.h`; `openmodule/DESIGN.md` sections 2 and 7). The module's title and length show; play, pause, stop, volume and repeat work as for a sound. |
 | `opendoc.datatype` | picture | the `doc.render/1` service | DOCX, XLSX, PPTX, OpenDocument, Word/Excel/PowerPoint 97, RTF, WordPerfect, PostScript and EPS, EPUB e-books, Markdown and CSV, laid out by LibreOffice or Apache OpenOffice (Ghostscript for PostScript) on the Cradle and shown as their pages one under the other, `ENV:OpenImage/DocWidth` pixels wide (default 800), the first `ENV:OpenImage/DocPages` pages (default 8). |
 | `openvideo.datatype` | animation | the `media.decode/1` service | MP4/MOV, MKV, AVI, WMV, MPEG and FLV video, and animated PNG (H.264, HEVC, AV1, VP9, MPEG-4, MPEG-1/2, WMV), kept open on the Cradle and sent a frame at a time in webm.datatype's 256 colours, scaled to fit `ENV:OpenImage/VideoWidth` x `VideoHeight` (default 640 x 480), with its sound as 8-bit mono. |
 | `webm.datatype` | animation | libvpx 1.17.0 | WebM video, VP8 or VP9, decoded frame by frame as the animation plays. Frames are shown in 256 colours (a 6x6x6 colour cube with ordered dithering), so they play on any screen. Sound through `media.decode/1` when a card or Cradle offers it. |
@@ -74,11 +74,13 @@ Copy the files from `out/` (after building) to the same places on the Amiga:
 `openvideo.datatype` also need `openservice.device` in `DEVS:` (OpenUp's
 OpenService part installs it) and a services card or a paired Cradle.
 
-`openmodule.datatype` needs nothing else: no card and no Cradle. To hand
-heavy modules to AmigaChrome's cores board it also needs
+`openmodule.datatype` needs nothing else: no card and no Cradle (it then
+mixes on this CPU, and plays through Paula without AHI). It plays through
+AHI 6 when `ahi.device` is installed (on AmigaChrome with ACAHI's driver,
+`acaudio.audio`). To hand the mixing to AmigaChrome's cores board it needs
 `openmulticore.library` in `LIBS:` (DalsinAI/openamigamulticore, built
-with its own `library/build.sh` and the os32 stove; see Known issues),
-and for `media.decode/1`, `openservice.device`.
+with its own `library/build.sh` and the os32 stove, not os32-gcc16; it is
+not in OpenUp yet), and for `media.decode/1`, `openservice.device`.
 
 Then reboot, or run `AddDataTypes REFRESH`.
 
@@ -211,22 +213,28 @@ mixes; share of one AC090 CPU):
 | Oktalyzer | 4 | 24.6 % | | 8.7 % |
 | FastTracker 2 XM | 6 | 29.4 % | | 10.6 % |
 
-The ladder (`openmodule/DESIGN.md` section 7) on the same copy with the
-cores board fitted, a 32-channel XM from `tests/make-modules.py` and
-`tests/dtsound.c LOAD=1`: chosen without being told, the 4- and
-8-channel MODs play on this CPU (mixing 21 % and 33 %), and the
-32-channel XM, 113 % here, goes to a core (21-56 % of the sound's time a
-job; the main CPU loses 0-9 %). Forced, the XM on this CPU takes 90 % of
-it and breaks up; through `media.decode/1` (2 s pieces, 350-410 ms a
-call) it takes 0-2 %. Recordings of every rung have no gaps but the
-pause they were given. OpenPlay's status line and Info window name the
-rung and its numbers.
+(The table above is libxmp alone, mixing 8-bit as for Paula.)
+
+Through AHI, with the ladder (`openmodule/DESIGN.md` sections 2 and 7),
+on the same copy with the cores board fitted and AHI 6.6 with ACAHI's
+Host mix on unit 0 at 44100 Hz, the test modules and a 32-channel XM,
+`tests/dtsound.c LOAD=1`, two runs: chosen without being told, every
+module plays on a core (4-74 % of the sound's time a job) and playing
+takes 0-5 % of the main CPU. Forced onto `media.decode/1` (2 s pieces,
+83-469 ms a call) 0-6 %; forced onto this CPU, 19-38 % for 4 to 8
+voices and 87 % for the 32-channel XM, which breaks up. Recorded from
+ACAHI's ring, every other case has no gaps but the pause the test gives,
+and the spectrum and stereo balance of libxmp's render on the PC.
+Without AHI (`ENV:OpenImage/ModuleOutput` `paula`) it plays through Paula
+as before, and says so. OpenPlay's status line and Info window name the
+rung, the output and the numbers.
 
 Not yet checked: real Amiga hardware (a stock 68020 above all, where the
 16 kHz default is a guess), DigiBooster, S3M, IT and the MED 2 to 4 and
 StarTrekker descriptors with real files (their masks are libxmp's own
 tests), modules from the wider world, `DTA_Repeat` and `DTA_Immediate`,
-the ladder over a paired Cradle on the LAN.
+the ladder over a paired Cradle on the LAN, AHI modes other than ACAHI's
+Host mix, and AHI on real hardware.
 
 ## Known issues
 
@@ -257,15 +265,16 @@ the ladder over a paired Cradle on the LAN.
 - `openmodule.datatype`: PowerPacker and XPK packed modules don't open
   (libxmp's depackers are left out), nor XM files with Ogg Vorbis samples.
   A file named `mod.something` or `something.mod` that no other datatype
-  knows is offered to it and refused as invalid data. Plays through Paula
-  only (8-bit, two channels), not AHI. Saving writes the module as it
-  came; there is no copy to the clipboard. Each module playing takes two
-  of Paula's four channels, so two can play at once and a third stays
-  silent. libxmp's floating point goes through the ROM math libraries, in
+  knows is offered to it and refused as invalid data. Through AHI, a
+  volume change is heard from the next half-second request, and a pause
+  skips what was queued (up to a second). Through Paula (no AHI) it is
+  8-bit, and each module playing takes two of Paula's four channels, so two
+  can play at once and a third stays silent. Saving writes the module as
+  it came; there is no copy to the clipboard. libxmp's floating point goes through the ROM math libraries, in
   the player process only, and in a cores board job too (library code read
   where it is: it works, but OpenMulticore's rules say no library calls,
-  and a strict job over the LAN could not do it). The ladder is chosen
-  when a module opens. openmulticore.library 0.1 built with os32-gcc16
+  and a strict job over the LAN could not do it). The rung is chosen when a
+  module opens. openmulticore.library 0.1 built with os32-gcc16
   passes jobs the wrong arguments (OMCTest's first job ran for minutes,
   even on the main CPU); built as its `build.sh` says, with the os32 stove
   (GCC 6.5), OMCTest passes and openmodule's jobs run.
