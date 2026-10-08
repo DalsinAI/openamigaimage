@@ -60,10 +60,10 @@
 #include "ahidev.h"
 
 const char LibName[] = "openmodule.datatype";
-const char LibIdString[] = "openmodule.datatype 47.1 (8.10.2026) Dalsin Limited, played by libxmp 4.7.3";
+const char LibIdString[] = "openmodule.datatype 47.3 (8.10.2026) Dalsin Limited, played by libxmp 4.7.3";
 const UWORD LibVersion = 47;
-const UWORD LibRevision = 1;
-static const char version[] __attribute__((used)) = "$VER: openmodule.datatype 47.1 (8.10.2026)";
+const UWORD LibRevision = 3;
+static const char version[] __attribute__((used)) = "$VER: openmodule.datatype 47.3 (8.10.2026)";
 
 const char dt_superclass[] = "sound.datatype";
 const UWORD dt_superversion = 39;
@@ -152,6 +152,7 @@ struct ModInst {
     ULONG sigMask;
     char title[XMP_NAME_SIZE + 1];
     char type[XMP_NAME_SIZE + 1];
+    struct timeval replay;         /* SDTA_ReplayPeriod's answer: OM_GET hands out its address */
 };
 
 ULONG dt_instsize = sizeof(struct ModInst);
@@ -220,7 +221,12 @@ static LONG envInterp(void)
 /* --- the player process ------------------------------------------------------- */
 
 /* The ROM math libraries libnix's soft floating point calls (xmpglue.c):
- * opened by each player process for itself. */
+ * opened by each player process for itself. The bases libnix calls through
+ * are shared by every player of every object, so each player keeps its own
+ * opens and closes only those: it sets the shared bases only once its opens
+ * have all worked (the same library, so the same base, while any player
+ * holds it open) and never clears them, so one player that fails, or ends,
+ * cannot take the libraries from another that is still mixing. */
 extern struct Library *MathIeeeDoubBasBase, *MathIeeeDoubTransBase, *MathIeeeSingBasBase;
 
 /* timer.device's E clock, to time the mixing (each player opens it). */
@@ -924,6 +930,7 @@ static void playerMain(void)
     struct xmp_module_info info;
     struct Audio a;
     struct Player pl, *p = &pl;
+    struct Library *dbas, *dtrans, *sbas;      /* this player's own opens */
     LONG err = DTERROR_INVALID_DATA;
     UWORD lastVolume;
     BOOL cores = FALSE, omc = FALSE;
@@ -937,13 +944,18 @@ static void playerMain(void)
     memset(&a, 0, sizeof a);
     memset(p, 0, sizeof *p);
     p->mi = mi;
-    MathIeeeDoubBasBase = OpenLibrary((CONST_STRPTR)"mathieeedoubbas.library", 34);
-    MathIeeeDoubTransBase = OpenLibrary((CONST_STRPTR)"mathieeedoubtrans.library", 34);
-    MathIeeeSingBasBase = OpenLibrary((CONST_STRPTR)"mathieeesingbas.library", 34);
-    if (!MathIeeeDoubBasBase || !MathIeeeDoubTransBase || !MathIeeeSingBasBase) {
+    dbas = OpenLibrary((CONST_STRPTR)"mathieeedoubbas.library", 34);
+    dtrans = OpenLibrary((CONST_STRPTR)"mathieeedoubtrans.library", 34);
+    sbas = OpenLibrary((CONST_STRPTR)"mathieeesingbas.library", 34);
+    if (!dbas || !dtrans || !sbas) {
         err = ERROR_INVALID_RESIDENT_LIBRARY;
         goto fail;
     }
+    Forbid();
+    MathIeeeDoubBasBase = dbas;
+    MathIeeeDoubTransBase = dtrans;
+    MathIeeeSingBasBase = sbas;
+    Permit();
     if (!OpenDevice((CONST_STRPTR)TIMERNAME, UNIT_ECLOCK, (struct IORequest *)&p->treq, 0)) {
         TimerBase = p->treq.tr_node.io_Device;
         p->timer = TRUE;
@@ -1202,9 +1214,9 @@ fail:
         CloseLibrary(OpenMulticoreBase);
     if (p->timer)
         CloseDevice((struct IORequest *)&p->treq);
-    CloseLibrary(MathIeeeSingBasBase);
-    CloseLibrary(MathIeeeDoubTransBase);
-    CloseLibrary(MathIeeeDoubBasBase);
+    CloseLibrary(sbas);                         /* this player's opens only; NULL is allowed */
+    CloseLibrary(dtrans);
+    CloseLibrary(dbas);
     /* Forbid() until the process is gone: the code it runs is the
      * datatype's, which may be unloaded as soon as the reply is seen. */
     Forbid();
@@ -1418,14 +1430,15 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
         case DTA_Repeat:
             *g->opg_Storage = mi->repeat;
             return TRUE;
-        case SDTA_ReplayPeriod: {
-            struct timeval *tv = (struct timeval *)*g->opg_Storage;
-            if (tv) {
-                tv->tv_secs = mi->repeat ? 0xFFFFFFFFUL : mi->ms / 1000;
-                tv->tv_micro = mi->repeat ? 0xFFFFFFFFUL : mi->ms % 1000 * 1000;
-            }
+        case SDTA_ReplayPeriod:
+            /* As sound.datatype answers it: the address of a timeval the
+             * object keeps (struct timeval *tv; GetDTAttrs(o,
+             * SDTA_ReplayPeriod, &tv)), not one the caller passes in.
+             * Looping, both fields are all ones, as a continuous sound's. */
+            mi->replay.tv_secs = mi->repeat ? 0xFFFFFFFFUL : mi->ms / 1000;
+            mi->replay.tv_micro = mi->repeat ? 0xFFFFFFFFUL : mi->ms % 1000 * 1000;
+            *g->opg_Storage = (ULONG)&mi->replay;
             return TRUE;
-        }
         case DTA_TriggerMethods:
             *g->opg_Storage = (ULONG)triggers;
             return TRUE;
