@@ -241,7 +241,9 @@ sounddesc S3M "Scream Tracker module" s3m $(i=0; while [ $i -lt 44 ]; do printf 
 # --- openmodule.datatype -----------------------------------------------------
 # Music modules played on the Amiga itself: libxmp mixes them a buffer at a
 # time in a player process of the object's own, onto two Paula channels
-# through audio.device (openmodule/DESIGN.md). libxmp's loaders, all of
+# through audio.device (openmodule/DESIGN.md); a module too heavy for this
+# CPU goes to a cores board core (openmulticore.library, headers copied in
+# include/) or to media.decode/1 (dtservice). libxmp's loaders, all of
 # them; no depackers or ProWizard (they write temporary files) and no Ogg
 # Vorbis samples (openmodule/xmpglue.c).
 unpack libxmp libxmp-4.7.3.tar.gz b6a98797e4fb9c9a705f5d53112aa5214561857e929a644928b9e658930d9440
@@ -253,13 +255,17 @@ XFLAGS="$XMPFLAGS -w" compile "$X" "$WORK/obj-libxmp" \
     $(cd "$X" && ls src/loaders/*.c | grep -v -e pw_load.c -e vorbis.c)
 rm -f "$WORK/libxmp.a"
 "$AR" rcs "$WORK/libxmp.a" "$WORK"/obj-libxmp/*.o
-XFLAGS="-I$HERE/common -I$X/include -DLIBXMP_STATIC $ACFLAGS" compile "$HERE" "$WORK/obj-openmodule" \
-    common/dtstart.c common/dtlib.c openmodule/moduleclass.c openmodule/xmpglue.c openmodule/novorbis.c
+# dtlib without its malloc (DT_OWN_MALLOC): openmodule's own keeps libxmp's
+# memory in one arena when a cores board may mix (openmodule/xmpglue.h);
+# dtservice for media.decode/1, the third rung.
+XFLAGS="-I$HERE/common -I$HERE/include -I$X/include -DLIBXMP_STATIC -DDT_OWN_MALLOC $ACFLAGS" compile "$HERE" "$WORK/obj-openmodule" \
+    common/dtstart.c common/dtlib.c common/dtservice.c openmodule/moduleclass.c openmodule/xmpglue.c openmodule/novorbis.c
 # libm: libnix's soft floating point, which calls the ROM math libraries
 # (opened in the player process; see moduleclass.c).
 $CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/openmodule.datatype" \
     "$WORK"/obj-openmodule/common_dtstart.o "$WORK"/obj-openmodule/common_dtlib.o \
-    "$WORK"/obj-openmodule/openmodule_moduleclass.o "$WORK"/obj-openmodule/openmodule_xmpglue.o \
+    "$WORK"/obj-openmodule/common_dtservice.o "$WORK"/obj-openmodule/openmodule_moduleclass.o \
+    "$WORK"/obj-openmodule/openmodule_xmpglue.o \
     "$WORK"/obj-openmodule/openmodule_novorbis.o \
     "$WORK/libxmp.a" $ACLIB -lamiga -lm \
     -Wl,-Map="$WORK/openmodule.datatype.map"
