@@ -14,7 +14,7 @@ WebM and music modules need no other libraries and play on the Amiga
 itself; the others are decoded by a Cradle (below).
 
 **Status:** Working on the bench: both decode exactly as the same libraries
-do on a PC. Not yet run on real Amiga hardware; WebM playback inside MultiView
+do on x86 cores. Not yet run on real Amiga hardware; WebM playback inside MultiView
 is not yet checked (see Tested).
 
 ## What they do
@@ -35,7 +35,7 @@ OpenBrowser decodes the pictures in web pages through datatypes, so with
 `openpicture.datatype`, `opensound.datatype`, `opendoc.datatype` and
 `openvideo.datatype` decode nothing themselves. It sends the file to
 `media.decode/1` through `openservice.device` (DalsinAI/openamigaservice):
-the host does the work on AmigaChrome and our Pi appliance, and a paired
+the x86 or ARM64 cores do the work on AmigaChrome and the Pi appliance, and a paired
 Cradle on the LAN does it for a real Amiga, which we expect to have
 PiStorm-class networking. With neither, the file does not open
 (`not implemented`): AV1 and HEVC are too slow on a 68k at photo sizes, and
@@ -110,7 +110,7 @@ How they are made:
   `AllocVec()`, so several programs can decode at once.
 - **AC090's native helpers.** `common/dtlib.c`'s `realloc` copies, and its
   `calloc` clears, through amigachrome-guest's helpers (`../achelpers/`,
-  `AC_HELPERS=1`, or `auto`, the default, when the pinned commit is to hand): host code on AmigaChrome, 68k code written
+  `AC_HELPERS=1`, or `auto`, the default, when the pinned commit is to hand): x86 or ARM64 code on AmigaChrome, 68k code written
   for the 68020 and 68040 elsewhere, and for under 64 bytes libnix's
   `memcpy` and `memset` as before. `calloc` then asks `AllocVec()` for
   uncleared memory, since exec's clearing is 68k code. `AC_HELPERS=0`
@@ -143,7 +143,7 @@ Instance-24, 4 October 2026, with test files made by `tests/make-media.sh`.
 
 `tests/dtpic.c` opens each picture through datatypes.library and reads it
 back as ARGB. Its checksums equal `tests/webpraw.c` decoding the same files
-with libwebp on the PC:
+with libwebp on x86 cores:
 
 ```
 DH1:OB/webp/lossy.webp 64 48 alpha=0 24b3d77f
@@ -154,8 +154,8 @@ DH1:OB/webp/anim.webp 32 32 alpha=0 02bb8100
 
 `tests/dtanim.c` opens each clip as an animation and loads every frame with
 `ADTM_LOADFRAME`. All 60 frames (30 VP8, 30 VP9, 160x120 at 10 frames a
-second) have the same 256-colour pixels as `tests/webmprobe.c -chunky` on the
-PC:
+second) have the same 256-colour pixels as `tests/webmprobe.c -chunky` on
+x86 cores:
 
 ```
 DH1:OB/webm/vp8.webm 160x120 depth=8 frames=30 fps=10 key=yes
@@ -174,10 +174,10 @@ are not yet checked.
 On AmigaOS 3.2.3 on AC090 (68040 with FPU), the modlab scratch copy of an
 OpenUp install, 8 October 2026, with modules made by
 `tests/make-modules.py` (synthesised samples, a 30-second tune; checked on
-the PC first by `tests/modbench.c` built against libxmp for the host,
+x86 cores first by `tests/modbench.c` built against libxmp for the host,
 which renders each to a WAV file). `tests/dtsound.c` opens each through
 datatypes.library and plays it as OpenPlay does (`DTM_TRIGGER`: play,
-pause, play, stop), while the PC records the instance's Paula output:
+pause, play, stop), while the x86 cores record the instance's Paula output:
 
 ```
 mods/mod.ot-4ch: datatype=openmodule descriptor="ProTracker module" name="openmodule 4ch test" kind="Protracker M.K." frames=857948 rate=27928 period=127 sample=NULL seconds=30
@@ -192,9 +192,9 @@ mods/mod.random: NEWDTOBJECT_FAIL ioerr=2008
 (`ot-xm.xm` with opensound.datatype installed too; `mod.random` is 3000
 random bytes, refused as invalid data.) Each recording has sound where it
 should, silence through the second's pause, and the same spectrum as the
-PC's render of the same module at the same rate (correlation of the log
+x86 cores' render of the same module at the same rate (correlation of the log
 band energies 1.00 for all six; left and right in the same balance; the
-loudness over time correlates 0.6 to 0.9 with the PC's). Setting
+loudness over time correlates 0.6 to 0.9 with the x86 cores'). Setting
 `SDTA_Volume` to 16 while it plays brings the level to 0.25 of what it
 was at once; a song left to play to its end signals `SDTA_SignalTask`
 after its 30.7 seconds. In OpenPlay the module plays as soon as it opens,
@@ -224,7 +224,7 @@ takes 0-5 % of the main CPU. Forced onto `media.decode/1` (2 s pieces,
 83-469 ms a call) 0-6 %; forced onto this CPU, 19-38 % for 4 to 8
 voices and 87 % for the 32-channel XM, which breaks up. Recorded from
 ACAHI's ring, every other case has no gaps but the pause the test gives,
-and the spectrum and stereo balance of libxmp's render on the PC.
+and the spectrum and stereo balance of libxmp's render on x86 cores.
 Without AHI (`ENV:OpenImage/ModuleOutput` `paula`) it plays through Paula
 as before, and says so. OpenPlay's status line and Info window name the
 rung, the output and the numbers.
