@@ -277,13 +277,25 @@ int vsnprintf(char *buffer, size_t size, const char *format, va_list ap)
     for (; *format; format++) {
         const char *text = NULL;
         unsigned long value;
-        int base = 10, negative = 0, i;
+        int base = 10, negative = 0, i, width = 0;
+        char pad = ' ';
         if (*format != '%') {
             PUT(*format);
             continue;
         }
         format++;
-        while (*format == 'l' || *format == 'z' || *format == '-' || (*format >= '0' && *format <= '9'))
+        /* a width for numbers ("%02x", "%4d"); other flags are skipped */
+        if (*format == '0')
+            pad = '0';
+        while (*format == '-' || (*format >= '0' && *format <= '9')) {
+            if (*format >= '0' && *format <= '9')
+                width = width * 10 + (*format - '0');
+            format++;
+        }
+        if (*format == '.')                    /* a precision: skipped */
+            for (format++; *format >= '0' && *format <= '9'; format++)
+                ;
+        while (*format == 'l' || *format == 'z')
             format++;
         switch (*format) {
         case 's':
@@ -321,7 +333,11 @@ int vsnprintf(char *buffer, size_t size, const char *format, va_list ap)
             digits[i++] = "0123456789abcdef"[value % base];
             value /= base;
         } while (value && i < (int)sizeof digits);
-        if (negative)
+        if (negative && pad == '0')
+            PUT('-');
+        for (width -= i + negative; width > 0; width--)
+            PUT(pad);
+        if (negative && pad != '0')
             PUT('-');
         while (i)
             PUT(digits[--i]);

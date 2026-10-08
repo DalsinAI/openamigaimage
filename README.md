@@ -1,14 +1,14 @@
 # openamigaimage
 
 zlib, libpng and libjpeg for AmigaOS 3.x on 68k, built as static link libraries for
-GCC programs, and the project's datatypes: `webp.datatype`, `webm.datatype`, `openpicture.datatype`, `opensound.datatype`, `opendoc.datatype` and `openvideo.datatype`
+GCC programs, and the project's datatypes: `webp.datatype`, `webm.datatype`, `openpicture.datatype`, `opensound.datatype`, `openmodule.datatype` (music modules: MOD, MED, Oktalyzer, DigiBooster, XM, S3M, IT, played on the Amiga itself), `opendoc.datatype` and `openvideo.datatype`
 (see [Datatypes](Datatypes/README.md)). Part of the [OpenAmiga](https://github.com/DalsinAI/openamiga)
 ports, made for [OpenBrowser](https://github.com/DalsinAI/openamigabrowser),
 the WebKit browser for AmigaOS 3.2.
 
 **Status:** Working: all three libraries build, and the smoke test's round trips pass on the bench. The WebP and WebM datatypes decode on the bench exactly as on a PC.
 
-This repository holds the Amiga build, not zlib, libpng, libjpeg, libwebp, libvpx itself: a build script,
+This repository holds the Amiga build, not zlib, libpng, libjpeg, libwebp, libvpx, libxmp itself: a build script,
 a smoke test and the upstream licences.
 
 ## Upstream
@@ -20,6 +20,7 @@ a smoke test and the upstream licences.
 | libjpeg | 9f | IJG licence (upstream/libjpeg/README, "LEGAL ISSUES") | https://www.ijg.org/ |
 | libwebp | 1.6.0 | BSD 3-clause, with the WebM patent grant (upstream/libwebp/COPYING, PATENTS) | https://chromium.googlesource.com/webm/libwebp |
 | libvpx | 1.17.0 | BSD 3-clause, with the WebM patent grant (upstream/libvpx/LICENSE, PATENTS) | https://chromium.googlesource.com/webm/libvpx |
+| libxmp | 4.7.3 | MIT (upstream/libxmp/COPYING; the code it carries from others, and their licences, in upstream/libxmp/CREDITS) | https://github.com/libxmp/libxmp |
 
 The exact files and their SHA-256 sums are in [SOURCES](SOURCES). All credit
 for the library goes to its authors; see `upstream/` for their notices.

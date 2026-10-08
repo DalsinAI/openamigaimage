@@ -1,9 +1,9 @@
 #!/bin/sh
-# openamigaimage datatypes: webp, webm, openpicture, opensound, opendoc and openvideo.datatype for AmigaOS
-# 3.x, built with the os32-gcc16 compiler (bebbo's amiga-gcc, GCC 16.2,
+# openamigaimage datatypes: webp, webm, openpicture, opensound, openmodule, opendoc and openvideo.datatype
+# for AmigaOS 3.x, built with the os32-gcc16 compiler (bebbo's amiga-gcc, GCC 16.2,
 # libnix). The datatypes run on any 68020 or better, with or without an FPU.
 # MIT, Copyright (c) 2026 Dalsin Limited. libwebp and libvpx keep their
-# BSD licences.
+# BSD licences, libxmp its MIT licence.
 #
 #   OS32_GCC16   compiler root holding prefix/ (default ~/AmigaChrome/stoves/os32-gcc16)
 #   PREFIX       where Classes/ and Devs/ go (default ./out)
@@ -229,14 +229,100 @@ sounddesc MIDI MIDI midi $(chars "MThd") 0 0 0 6
 sounddesc PSID "C64 SID tune" psid $(chars "PSID")
 # shellcheck disable=SC2046
 sounddesc RSID "C64 SID tune (RSID)" rsid $(chars "RSID")
-# PC tracker modules through libopenmpt. ProTracker MODs and MED stay with
-# the Amiga's own players.
+# PC tracker modules through libopenmpt, when openmodule.datatype (below,
+# played on the Amiga itself, tried first) is not installed.
 # shellcheck disable=SC2046
 sounddesc XM "FastTracker module" xm $(chars "Extended Module: ")
 # shellcheck disable=SC2046
 sounddesc IT "Impulse Tracker module" it $(chars "IMPM")
 # shellcheck disable=SC2046
 sounddesc S3M "Scream Tracker module" s3m $(i=0; while [ $i -lt 44 ]; do printf 'ANY '; i=$((i+1)); done) $(chars "SCRM")
+
+# --- openmodule.datatype -----------------------------------------------------
+# Music modules played on the Amiga itself: libxmp mixes them a buffer at a
+# time in a player process of the object's own, onto two Paula channels
+# through audio.device (openmodule/DESIGN.md). libxmp's loaders, all of
+# them; no depackers or ProWizard (they write temporary files) and no Ogg
+# Vorbis samples (openmodule/xmpglue.c).
+unpack libxmp libxmp-4.7.3.tar.gz b6a98797e4fb9c9a705f5d53112aa5214561857e929a644928b9e658930d9440
+X="$WORK/libxmp/libxmp-4.7.3"
+XMPFLAGS="-DWORDS_BIGENDIAN -DLIBXMP_NO_DEPACKERS -DLIBXMP_NO_PROWIZARD -DLIBXMP_STATIC -I$X/include"
+# shellcheck disable=SC2046
+XFLAGS="$XMPFLAGS -w" compile "$X" "$WORK/obj-libxmp" \
+    $(cd "$X" && ls src/*.c | grep -v -e win32.c -e mkstemp.c -e tempfile.c) \
+    $(cd "$X" && ls src/loaders/*.c | grep -v -e pw_load.c -e vorbis.c)
+rm -f "$WORK/libxmp.a"
+"$AR" rcs "$WORK/libxmp.a" "$WORK"/obj-libxmp/*.o
+XFLAGS="-I$HERE/common -I$X/include -DLIBXMP_STATIC $ACFLAGS" compile "$HERE" "$WORK/obj-openmodule" \
+    common/dtstart.c common/dtlib.c openmodule/moduleclass.c openmodule/xmpglue.c openmodule/novorbis.c
+# libm: libnix's soft floating point, which calls the ROM math libraries
+# (opened in the player process; see moduleclass.c).
+$CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/openmodule.datatype" \
+    "$WORK"/obj-openmodule/common_dtstart.o "$WORK"/obj-openmodule/common_dtlib.o \
+    "$WORK"/obj-openmodule/openmodule_moduleclass.o "$WORK"/obj-openmodule/openmodule_xmpglue.o \
+    "$WORK"/obj-openmodule/openmodule_novorbis.o \
+    "$WORK/libxmp.a" $ACLIB -lamiga -lm \
+    -Wl,-Map="$WORK/openmodule.datatype.map"
+echo "openmodule.datatype: $(wc -c < "$OUT/Classes/DataTypes/openmodule.datatype") bytes"
+# modbench (tests/modbench.c): libxmp's mixing time on this Amiga, a plain
+# Shell program, left in work/.
+$CC -O2 -m68020 -fomit-frame-pointer -I"$X/include" -DLIBXMP_STATIC -o "$WORK/modbench" \
+    "$HERE/tests/modbench.c" "$WORK"/obj-openmodule/openmodule_novorbis.o "$WORK/libxmp.a" -lm
+moddesc() {      # FILE NAME ID PATTERN MASK...
+    f=$1; n=$2; i=$3; pat=$4; shift 4
+    python3 "$HERE/common/mkdtdesc.py" "$OUT/Devs/DataTypes/$f" "$n" openmodule soun "$i" "$pat" \
+        "\$VER: $f 47.1 (8.10.2026)" "$@"
+    echo "Devs/DataTypes/$f: $(wc -c < "$OUT/Devs/DataTypes/$f") bytes"
+}
+anys() {         # $1 ANY mask items
+    i=0; while [ "$i" -lt "$1" ]; do printf 'ANY '; i=$((i+1)); done
+}
+# 31-instrument MODs carry their kind at byte 1080: ProTracker (M.K., and
+# M!K! past 64 patterns), StarTrekker (FLT4, FLT8), FastTracker (2CHN to
+# 9CHN) and TakeTracker (10CH to 32CH). datatypes.library reads as much of
+# a file as its longest mask, so these masks run to byte 1083.
+# shellcheck disable=SC2046
+moddesc ProTracker "ProTracker module" mod "#?" $(anys 1080) $(chars "M.K.")
+# shellcheck disable=SC2046
+moddesc ProTracker-100 "ProTracker module (over 64 patterns)" mod "#?" $(anys 1080) $(chars "M!K!")
+# shellcheck disable=SC2046
+moddesc StarTrekker "StarTrekker module" mod "#?" $(anys 1080) $(chars "FLT4")
+# shellcheck disable=SC2046
+moddesc StarTrekker-8 "StarTrekker module (8 channels)" mod "#?" $(anys 1080) $(chars "FLT8")
+# shellcheck disable=SC2046
+moddesc MOD-xCHN "FastTracker MOD" mod "#?" $(anys 1081) $(chars "CHN")
+# shellcheck disable=SC2046
+moddesc MOD-xxCH "TakeTracker MOD" mod "#?" $(anys 1082) $(chars "CH")
+# The 15-instrument SoundTracker MOD has no signature: by its name only
+# (mod.name, as on the Amiga, or name.mod), and libxmp checks the header.
+# With no mask it is tried after every descriptor that has one.
+moddesc SoundTracker "SoundTracker module" mod "(mod.#?|#?.mod)"
+# shellcheck disable=SC2046
+moddesc OctaMED "MED module" mmd "#?" $(chars "MMD") ANY
+# shellcheck disable=SC2046
+moddesc MED-2 "MED 2 module" med "#?" $(chars "MED") 2
+# shellcheck disable=SC2046
+moddesc MED-3 "MED 3 module" med "#?" $(chars "MED") 3
+# shellcheck disable=SC2046
+moddesc MED-4 "MED 4 module" med "#?" $(chars "MED") 4
+# shellcheck disable=SC2046
+moddesc Oktalyzer "Oktalyzer module" okt "#?" $(chars "OKTASONG")
+# shellcheck disable=SC2046
+moddesc DigiBooster "DigiBooster module" digi "#?" $(chars "DIGI Booster module")
+# shellcheck disable=SC2046
+moddesc DigiBooster-Pro "DigiBooster Pro module" dbm "#?" $(chars "DBM0")
+# FastTracker 2, Scream Tracker 3 and Impulse Tracker: opensound.datatype
+# has descriptors for these too (played by libopenmpt on the Cradle).
+# AmigaOS 3.2's datatypes.library tries longer masks first and does not go
+# by priority (openmodule/DESIGN.md), so these masks are one byte longer
+# than opensound's (ANY: an XM, S3M or IT is never that short), and these
+# play here when both are installed.
+# shellcheck disable=SC2046
+moddesc Module-XM "FastTracker 2 module" xm "#?" $(chars "Extended Module: ") ANY
+# shellcheck disable=SC2046
+moddesc Module-S3M "Scream Tracker 3 module" s3m "#?" $(anys 44) $(chars "SCRM") ANY
+# shellcheck disable=SC2046
+moddesc Module-IT "Impulse Tracker 2 module" it "#?" $(chars "IMPM") ANY
 
 # --- opendoc.datatype ---------------------------------------------------------
 # Office documents as pictures of their pages, laid out by LibreOffice through
