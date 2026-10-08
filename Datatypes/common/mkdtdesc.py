@@ -9,8 +9,11 @@ pointers stored as offsets from the start of the chunk, then the mask
 usage: mkdtdesc.py OUT NAME BASENAME GROUP ID PATTERN VERSION [MASK...]
   With no MASK the PATTERN alone decides (text formats with no signature).
   MASK items: a character in quotes ('R'), a number (0x52) or ANY.
-  DT_PRIORITY in the environment sets the priority (default 0); a higher
-  one is tried first where two descriptors match the same file.
+  DT_PRIORITY in the environment sets the priority (default 0, -128 to
+  127). AROS tries a higher one first where two descriptors match the same
+  file; AmigaOS 3.2.3's datatypes.library was seen to try a longer mask
+  first and, between equal masks, priority 0 before higher ones
+  (openmodule/DESIGN.md), so a longer mask is the way to come first there.
   DT_TEXT=1 marks a text format (DTF_ASCII): datatypes.library only tries
   text descriptors on a file that reads as text, so SVG, PostScript, RTF,
   CSV and the like need it or the ascii datatype takes them.
@@ -51,7 +54,7 @@ def main(argv):
     dthd = struct.pack(">IIII4s4shhHH", name_off, base_off, pattern_off, mask_off if mask else 0,
                        group.encode(), ident.encode(), len(mask), 0,
                        DTF_ASCII if os.environ.get("DT_TEXT") == "1" else DTF_BINARY,
-                       int(os.environ.get("DT_PRIORITY", "0")))
+                       int(os.environ.get("DT_PRIORITY", "0")) & 0xFFFF)
     dthd += b"".join(struct.pack(">H", w) for w in mask)
     dthd += name.encode() + b"\0" + base.encode() + b"\0" + pattern.encode() + b"\0"
     # The same chunk order as the system's own descriptors.
