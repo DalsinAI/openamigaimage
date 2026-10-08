@@ -13,6 +13,7 @@ arpeggio and vibrato, a pad):
   med.ot-mmd0       MED / OctaMED MMD0, 4 tracks            (~31 s)
   ot-okt.okta       Oktalyzer, 4 channels                   (~31 s)
   ot-xm.xm          FastTracker 2 XM, 6 channels            (~31 s)
+  ot-xm32.xm        FastTracker 2 XM, 32 channels: a heavy one (~31 s)
 
 The formats are as libxmp reads them (src/loaders/*_load.c in libxmp
 4.7.3). Check them on the PC with modbench (modbench.c) built against
@@ -321,11 +322,16 @@ def xm_file(title, channels=6):
         rows = pattern(p, 8)
         for row in rows:
             for c in range(channels):
-                n, s, fx, prm = row[c]
+                n, s, fx, prm = row[c % 8]
                 # XM note 1 = C-0; ProTracker's C-1 is XM's C-4 (the sample
                 # relative note below lines the pitches up)
                 note = note_index(n) + 1 + 36 if n else 0
-                data += bytes([note, s, 0, fx, prm])
+                # past eight channels the same tune again, quietly (volume
+                # column 0x10 + volume), a semitone apart: work for the mixer
+                vol = 0x10 + 6 if c >= 8 and n else 0
+                if c >= 8 and n:
+                    note = min(96, note + c // 8)
+                data += bytes([note, s, vol, fx, prm])
         out += struct.pack("<IBHH", 9, 0, 64, len(data)) + data
     for name, data, ls, ll, vol in smp:
         out += struct.pack("<I", 263) + name.encode()[:22].ljust(22, b"\0") + bytes([0]) + struct.pack("<H", 1)
@@ -360,6 +366,7 @@ def main(argv):
         "med.ot-mmd0": mmd0_file("openmodule MMD0 test"),
         "ot-okt.okta": okt_file(),
         "ot-xm.xm": xm_file("openmodule XM test"),
+        "ot-xm32.xm": xm_file("openmodule XM 32ch", channels=32),
     }
     for name, data in files.items():
         with open(os.path.join(d, name), "wb") as f:
