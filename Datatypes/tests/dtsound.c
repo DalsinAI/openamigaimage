@@ -4,7 +4,7 @@
  * seconds through DTM_TRIGGER (as OpenPlay does), pausing in the middle,
  * to hear or record it.
  *
- *   dtsound [PLAY=seconds] [VOL=volume] [WAIT=seconds] [MARK=file] FILE...
+ *   dtsound [PLAY=seconds] [VOL=volume] [WAIT=seconds] [LOAD=1] [MARK=file] FILE...
  *
  * With PLAY, each sound plays for that many seconds: STM_PLAY, a pause of
  * a second (STM_PAUSE) half way, STM_PLAY again, then STM_STOP. VOL sets
@@ -12,9 +12,13 @@
  * plays it once (STM_PLAY) and waits that long for the end of the sound
  * (SDTA_SignalTask), saying whether it came. With MARK, lines "PLAY
  * <file>" and so on are added to that file as each starts, so a PC
- * recording the machine's sound knows when. Each sound's SDTA_ReplayPeriod
- * is printed too, asked the way sound.datatype answers it: a pointer to
- * the object's own timeval.
+ * recording the machine's sound knows when. With LOAD=1 the waiting is
+ * done by counting, at a priority below everything, and the count against
+ * one taken with nothing playing says how much of the main CPU playing
+ * took. openamigaimage's own attributes (OIA_DecodedBy, OIA_Stats) are
+ * printed when the datatype has them. Each sound's SDTA_ReplayPeriod is
+ * printed too, asked the way sound.datatype answers it: a pointer to the
+ * object's own timeval.
  *
  * MIT, Copyright (c) 2026 Dalsin Limited.
  */
@@ -30,6 +34,7 @@
 #include <proto/intuition.h>
 #include <proto/datatypes.h>
 #include <clib/alib_protos.h>
+#include <datatypes/openimage.h>
 
 struct Library *DataTypesBase;
 
@@ -43,6 +48,35 @@ static void mark(const char *file, const char *what, const char *name)
     Seek(f, 0, OFFSET_END);
     FPrintf(f, (CONST_STRPTR)"%s %s\n", (ULONG)what, (ULONG)name);
     Close(f);
+}
+
+static int loadMode;
+static unsigned long baseRate;        /* counts a tick with nothing playing */
+static unsigned long spunCount, spunTicks;
+
+/* Waits ticks (1/50 s), counting at the lowest priority when LOAD=1. */
+static void pause_ticks(LONG ticks)
+{
+    struct DateStamp d0, d1;
+    volatile unsigned long n = 0;
+    LONG el = 0;
+    BYTE old;
+    if (!loadMode) {
+        Delay(ticks);
+        return;
+    }
+    old = SetTaskPri(FindTask(NULL), -100);
+    DateStamp(&d0);
+    do {
+        unsigned long k;
+        for (k = 0; k < 4096; k++)
+            n++;
+        DateStamp(&d1);
+        el = (d1.ds_Minute - d0.ds_Minute) * 3000 + (d1.ds_Tick - d0.ds_Tick);
+    } while (el < ticks);
+    SetTaskPri(FindTask(NULL), old);
+    spunCount += n;
+    spunTicks += el;
 }
 
 static void trig(Object *o, ULONG what)
@@ -74,6 +108,17 @@ int main(int argc, char **argv)
         }
         if (!strncmp(argv[i], "WAIT=", 5)) {
             wait = atoi(argv[i] + 5);
+            continue;
+        }
+        if (!strncmp(argv[i], "LOAD=", 5)) {
+            loadMode = atoi(argv[i] + 5);
+            if (loadMode && !baseRate) {
+                spunCount = spunTicks = 0;
+                pause_ticks(100);
+                baseRate = spunTicks ? spunCount / spunTicks : 1;
+                printf("idle: %lu counts a tick\n", baseRate);
+                fflush(stdout);
+            }
             continue;
         }
         if (!strncmp(argv[i], "MARK=", 5)) {
@@ -108,9 +153,11 @@ int main(int argc, char **argv)
                sample ? "set" : "NULL", rate ? (unsigned long)(len / rate) : 0UL);
         fflush(stdout);
         if (play > 0) {
+            STRPTR by = NULL, stats = NULL;
             mark(markFile, "PLAY", argv[i]);
+            spunCount = spunTicks = 0;
             trig(o, STM_PLAY);
-            Delay(50 * (play / 2));
+            pause_ticks(50 * (play / 2));
             trig(o, STM_PAUSE);
             mark(markFile, "PAUSE", argv[i]);
             Delay(50);
@@ -118,7 +165,15 @@ int main(int argc, char **argv)
                 SetDTAttrs(o, NULL, NULL, SDTA_Volume, (ULONG)vol, TAG_DONE);
             trig(o, STM_PLAY);
             mark(markFile, "RESUME", argv[i]);
-            Delay(50 * (play - play / 2));
+            pause_ticks(50 * (play - play / 2));
+            if (GetDTAttrs(o, OIA_DecodedBy, (ULONG)&by, TAG_DONE) && by) {
+                GetDTAttrs(o, OIA_Stats, (ULONG)&stats, TAG_DONE);
+                printf("%s: played by %s: %s\n", argv[i], (char *)by, stats ? (char *)stats : "");
+            }
+            if (loadMode && baseRate && spunTicks)
+                printf("%s: main CPU taken while playing: %lu%%\n", argv[i],
+                       spunCount / spunTicks >= baseRate ? 0UL : 100UL - spunCount / spunTicks * 100 / baseRate);
+            fflush(stdout);
             trig(o, STM_STOP);
             mark(markFile, "STOP", argv[i]);
         }
