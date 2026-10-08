@@ -12,7 +12,9 @@
  * plays it once (STM_PLAY) and waits that long for the end of the sound
  * (SDTA_SignalTask), saying whether it came. With MARK, lines "PLAY
  * <file>" and so on are added to that file as each starts, so a PC
- * recording the machine's sound knows when.
+ * recording the machine's sound knows when. Each sound's SDTA_ReplayPeriod
+ * is printed too, asked the way sound.datatype answers it: a pointer to
+ * the object's own timeval.
  *
  * MIT, Copyright (c) 2026 Dalsin Limited.
  */
@@ -22,6 +24,7 @@
 #include <datatypes/datatypes.h>
 #include <datatypes/datatypesclass.h>
 #include <datatypes/soundclass.h>
+#include <devices/timer.h>
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <proto/intuition.h>
@@ -87,6 +90,16 @@ int main(int argc, char **argv)
                    DTA_ObjAnnotation, (ULONG)&annotation, SDTA_SampleLength, (ULONG)&len,
                    SDTA_Period, (ULONG)&period, SDTA_Sample, (ULONG)&sample, TAG_DONE);
         GetDTAttrs(o, SDTA_SamplesPerSec, (ULONG)&rate, TAG_DONE);
+        {
+            struct timeval *replay = NULL;
+            GetDTAttrs(o, SDTA_ReplayPeriod, (ULONG)&replay, TAG_DONE);
+            if (!replay)
+                printf("%s: replay period not given\n", argv[i]);
+            else if (replay->tv_secs == 0xFFFFFFFFUL)
+                printf("%s: replay period continuous\n", argv[i]);
+            else
+                printf("%s: replay period %lu.%06lu s\n", argv[i], (unsigned long)replay->tv_secs, (unsigned long)replay->tv_micro);
+        }
         printf("%s: datatype=%s descriptor=\"%s\" name=\"%s\" kind=\"%s\" frames=%lu rate=%lu period=%lu sample=%s seconds=%lu\n",
                argv[i], dtn ? (char *)dtn->dtn_Header->dth_BaseName : "?",
                dtn ? (char *)dtn->dtn_Header->dth_Name : "?",
