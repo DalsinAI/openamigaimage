@@ -34,7 +34,7 @@ wrap="-Wl,--wrap=ac_memcpy,--wrap=ac_memmove,--wrap=ac_memset"
 
 for flags in "-O0 -m68020" "-O2 -m68020" "-O0 -m68040" "-O2 -m68040"; do
     cpu=m$(echo "$flags" | sed 's/.*-m\(680[0-9]0\).*/\1/')
-    cf="-std=gnu99 -Wall -Wextra -Werror $flags"
+    cf="-std=gnu99 -Wall -Wextra -Werror -fno-delete-null-pointer-checks $flags"
     t=$tmp/$(echo "$flags" | tr -d ' -'); mkdir -p "$t"
     if ! CC=$cc AR=${prefix}ar CFLAGS="$cf" sh "$root/achelpers/achelpers.sh" "$t/ach" > "$t/log" 2>&1; then
         cat "$t/log"; say "FAIL $flags: achelpers.sh"; continue
@@ -73,7 +73,7 @@ done
 # a crc32.c without Chromium's copy_with_crc: zlib's own keeps it
 mkdir -p "$tmp/plain"; cp "$here"/zstub/adler32.c "$zinc/zlib.h" "$zinc/zconf.h" "$tmp/plain/"
 sed '/^void copy_with_crc/,$d' "$here/zstub/crc32.c" > "$tmp/plain/crc32.c"
-CC=$cc CFLAGS="-O2 -m68020 -I. -I$tmp/O2m68020/ach/src" sh -c 'cd "$1" && sh "$2" "$1/zo"' sh "$tmp/plain" "$root/achelpers/zlibsums.sh" > "$tmp/plain/msg" 2>&1 || true
+CC=$cc CFLAGS="-O2 -m68020 -fno-delete-null-pointer-checks -I. -I$tmp/O2m68020/ach/src" sh -c 'cd "$1" && sh "$2" "$1/zo"' sh "$tmp/plain" "$root/achelpers/zlibsums.sh" > "$tmp/plain/msg" 2>&1 || true
 if grep -q "stays zlib's own" "$tmp/plain/msg" && ! "${prefix}nm" "$tmp/plain/zo/ac_zlib.o" | grep -q copy_with_crc; then
     say "ok   zlibsums.sh leaves deflate's gzip crc to zlib when crc32.c has no plain copy_with_crc"
 else
