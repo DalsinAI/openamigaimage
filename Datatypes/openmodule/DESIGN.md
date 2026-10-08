@@ -42,7 +42,8 @@ process** of its own (`openmodule player`, priority 2, 64 KB of stack):
   process, which loads the module with libxmp
   (`xmp_load_module_from_memory`) and answers with its title, kind and
   length. A file libxmp can't read fails `OM_NEW` (`DTERROR_INVALID_DATA`),
-  as any datatype does.
+  as any datatype does. It then chooses what mixes the module: this CPU,
+  a cores board core or media.decode/1 (section 7).
 - On `STM_PLAY` it allocates one left and one right Paula channel
   (audio.device, allocation map 3, 5, 10, 12), mixes four buffers of an
   eighth of a second each (`xmp_play_buffer`, 8-bit stereo), splits each
@@ -101,6 +102,9 @@ for later.
 | --- | --- | --- |
 | Mixing rate | 28000 Hz on a 68040 or 68060; 16000 Hz on a 68020 or 68030 | `ENV:OpenImage/SoundRate` (shared with opensound.datatype) |
 | Interpolation | linear on a 68040 or 68060; none (nearest) on a 68020 or 68030 | `ENV:OpenImage/ModuleMix`: `nearest`, `linear` or `spline` |
+| Who mixes | the ladder (section 7) | `ENV:OpenImage/ModulePlayer`: `auto`, `cpu`, `cores` or `service` |
+| Too slow for this CPU | more than 50 % of it | `ENV:OpenImage/ModuleMaxLoad` (per cent) |
+| Too slow for a core | more than 85 % of the sound's own time | `ENV:OpenImage/ModuleCoreLoad` (per cent) |
 
 The rate is turned into a whole Paula period (PAL or NTSC, from the
 E clock) of at least 124, and libxmp mixes at exactly the rate that
@@ -190,8 +194,8 @@ module plays:
 
 The ProTracker module also took 11.8 % with spline interpolation at
 28 kHz and 14.5 % linear at 16 kHz. That spline cost less than linear is
-AC090's JIT, not libxmp (on a PC spline costs about 10 % more than
-linear); AC090's figures are its own and say little about a real 68040,
+AC090's JIT (it interprets 32-bit multiplies, section 7), not libxmp (on
+a PC spline costs about 10 % more than linear); AC090's figures are its own and say little about a real 68040,
 nor about a stock 68020, which is many times slower. The 68020 and 68030
 defaults (16 kHz, nearest) are chosen to be safe, not yet measured.
 
@@ -212,3 +216,86 @@ sample position every tick, which could be handed straight to Paula's four
 channels. That would cost a 68000 almost nothing, but leaves no channel for
 other sounds and gives up stereo placement; it is the next step if the
 mixing costs too much on a stock 68020.
+
+## 7. The ladder: this CPU, another core, a service
+
+The Team's rule for heavy modules on slow Amigas (8 October 2026): "hand
+them to other cores first, then network services". Each object's player
+takes the first of these that is there and fast enough, when the module
+is opened:
+
+1. **This CPU.** Any 68020 or better plays a module of four channels or
+   fewer here without a test. A bigger one plays here when its first eighth of
+   a second mixes in no more than `ModuleMaxLoad` (50 %) of its playing
+   time.
+2. **A cores board core** (AmigaChrome's Dalsin $DA15 product 7, up to
+   eight translated 68040 cores, `cpu.m68k/1`), through
+   `openmulticore.library` (DalsinAI/openamigamulticore) on
+   openservice.device. Each eighth of a second is one job: `om_job_mix`,
+   which calls `xmp_play_buffer` on a core, by `OMC_Run68k`. The board's
+   rules (AmigaChrome `CORES_BOARD.md`) are that a job calls no OS,
+   touches no Chip RAM and writes only its written buffers. libxmp
+   allocates nothing while it mixes, so the player loads and starts it
+   with an arena in use (`xmpglue.h`): every allocation libxmp makes comes
+   from one block of Fast RAM, and that block (a few hundred KB for the
+   test modules) is the job's one written buffer. Reads are permissive:
+   the code, libxmp's tables and the ROM math libraries its floating point
+   calls are read where they are. The main CPU sleeps in `OMC_Run68k`
+   while the core mixes. A core is used when the first job takes no more
+   than `ModuleCoreLoad` (85 %) of its sound's time. If a job fails (a
+   fault, a refusal, a timeout) the song stops and plays again on this CPU.
+3. **media.decode/1** on a services card or a paired Cradle (libopenmpt,
+   as opensound.datatype uses), through openservice.device: `DECODE` two
+   seconds at a time from a frame offset (`MEDIA_DECODE.md`: "a long sound
+   can come in pieces"). Each call costs a few hundred milliseconds, so on
+   this rung the buffers are a quarter of a second, and a second is queued.
+   It plays at the rate the service gives (24000 Hz for a 28000 Hz ask).
+4. **This CPU anyway**, when none of the others is there: the stats say
+   it is too slow.
+
+The probes cost the first eighth of a second's mixing once or twice at
+open, then libxmp starts again from the top. The status line says which rung
+plays: `OIA_DecodedBy` ("this Amiga's CPU", "a cores board core
+(cpu.m68k/1)", "media.decode/1 through the Nursery") and `OIA_Stats` (the
+measured load), openamigaimage attributes in
+`../include/datatypes/openimage.h`. OpenPlay shows them.
+
+**Measured** on the modlab scratch copy (AmigaOS 3.2.3 on AC090, a 68040,
+with the cores board fitted: `"coresBoard": true`, eight translated
+cores), 8 October 2026, with `tests/dtsound.c LOAD=1`, which counts at
+the lowest priority while a module plays; three runs. "Main CPU" is how
+much of that counting playing took away. "Mixing" is the time spent
+mixing (or waiting for a core's job, or for the service) as a share of
+the sound's time:
+
+| Module | Rung | Mixing | Main CPU | Gaps |
+| --- | --- | --- | --- | --- |
+| ProTracker M.K., 4 voices | 1, this CPU (auto) | 21-22 % | 4-16 % | none |
+| FastTracker 8CHN MOD, 8 voices | 1, this CPU (auto: probe 34 %) | 33 % | 25-31 % | none |
+| FastTracker 2 XM, 32 voices | 1, this CPU (forced) | 108-127 % | 90 % | many: too slow |
+| FastTracker 2 XM, 32 voices | 2, a core (auto: probe here 113 %, on a core 83 %) | 21-56 % a job | 0-9 % | none |
+| ProTracker M.K., 4 voices | 2, a core (forced) | 8-12 % a job | 1-3 % | none |
+| FastTracker 2 XM, 32 voices | 3, media.decode/1 (forced) | 2 s pieces, 350-410 ms a call | 0-2 % | none |
+| ProTracker M.K., 4 voices | 3, media.decode/1 (forced) | 2 s pieces, 104-121 ms a call | 0-1 % | none |
+
+A core's job time varies from run to run (21 % in one, 54-56 % in
+another): its completion is published by the main core's emulation
+thread at the end of a line (AmigaChrome's `CORES_BOARD.md`), so it
+probably depends on what the main core is doing.
+
+AC090 interprets 32-bit multiplies (`MULS.L`, `MULU.L`) inline rather
+than translating them (its own log shows them, 35 million every five
+seconds in a loop of them). libxmp's linear interpolation does one per
+sample, which is why linear mixing costs more than spline here (section
+6), on the main core and on the board's cores alike. Translating them is
+the largest gain for this datatype on AmigaChrome.
+
+**Not yet:** the job runs the soft-float libxmp, whose floating point goes
+through the ROM math libraries (library code, read and run where it is).
+That works on the board, but it bends rule 1 (no library calls), and over
+the LAN (strict jobs) it would not. A libxmp built with `-m68881` for the
+core (the board's cores are 68040s with an FPU) would keep to the rule
+and be faster. A module bigger than about 4.5 MB needs an arena over the
+15 MB a job may write, so it skips rung 2. The ladder is chosen when a
+module opens. It does not move to another rung while the module plays,
+except from a core that fails.
