@@ -210,6 +210,10 @@ const struct Resident dt_romtag __attribute__((used)) = {
 
 /* --- task-safe memory for the decoders ------------------------------------ */
 
+/* A datatype with an allocator of its own (openmodule's arenas) builds this
+ * file with DT_OWN_MALLOC and supplies malloc, calloc, free and realloc. */
+#ifndef DT_OWN_MALLOC
+
 void *malloc(size_t size)
 {
     ULONG *block = AllocVec(size + 8, MEMF_ANY);
@@ -266,6 +270,8 @@ void *realloc(void *p, size_t size)
     }
     return n;
 }
+
+#endif /* DT_OWN_MALLOC */
 
 /* A small vsnprintf for decoders' error messages (%s %c %d %u %x %%), so
  * libnix's stdio (which needs a program's start-up) stays out. */
