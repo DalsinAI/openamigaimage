@@ -24,7 +24,8 @@
  * The colours (png_rows: each row to ARGB, and Adam7's placing) are shared
  * between the cores of a cores board in bands of rows, with omc_bands()
  * from openmulticore (include/openmulticore/bands.h, copied in), when the
- * picture is big enough to gain (OPENPNG_BANDS_MIN). With no
+ * picture is big enough to gain (OPENPNG_BANDS_MIN: 8 megapixels, while
+ * a job costs 1 to 3 ms to send on Instance-32's board). With no
  * openmulticore.library or no board, or after any error on a core, the rows
  * are done here: the same bytes either way. Inflate and the filters stay on
  * one core, as each row needs the one before (11 October 2026, the Team).
@@ -49,9 +50,12 @@
 #include <openmulticore/bands.h>
 #endif
 
-/* Pictures with fewer pixels than this keep their colours on this CPU: a
- * call to the cores costs about a millisecond of setup (OMCBands, Instance-32). */
-#define OPENPNG_BANDS_MIN (320UL * 240UL)
+/* Pictures with fewer pixels than this keep their colours on this CPU.
+ * Measured on Instance-32 (PNGBench, 11 October 2026): the colours of a
+ * 1920 x 1080 picture take 8 to 12 ms on the main CPU, while sending eight
+ * bands to the cores board and collecting them costs 15 to 20 ms, so only
+ * very big pictures gain until a job costs less to send. */
+#define OPENPNG_BANDS_MIN (4096UL * 2048UL)
 
 const char LibName[] = "openpng.datatype";
 const char LibIdString[] = "openpng.datatype 47.4 (11.10.2026) Dalsin Limited";
