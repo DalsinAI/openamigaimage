@@ -552,17 +552,17 @@ static void convert(const struct png_head *h, const UBYTE *s, ULONG n, ULONG *d,
     }
 }
 
-LONG png_decode(const struct png_head *h, const UBYTE *idat, UBYTE *raw, ULONG *argb, APTR work)
+/* Inflate and the filters: row after row, each row needing the one above, so this part stays on one
+ * core. Where the stream stops, the rows it reached are kept and the rest stay clear (png_rows). */
+ULONG png_unpack(const struct png_head *h, const UBYTE *idat, UBYTE *raw, APTR work)
 {
     ULONG got, at = 0, i, bpp = (channels(h->ctype) * h->depth + 7) >> 3;
     LONG pass, passes = h->interlace ? 7 : 1;
     got = zlib_inflate((inf_work *)work, idat, h->idat_len, raw, h->raw_len);
     if (!got)
-        return -1;
+        return 0;
     for (i = got; i < h->raw_len; i++)
         raw[i] = 0;                     /* cut short: the rest stays clear */
-    for (i = 0; i < h->width * h->height; i++)
-        argb[i] = 0;
     for (pass = 0; pass < passes; pass++) {
         ULONG pw, ph, rb, y;
         const UBYTE *prev = 0;
@@ -573,16 +573,65 @@ LONG png_decode(const struct png_head *h, const UBYTE *idat, UBYTE *raw, ULONG *
         for (y = 0; y < ph; y++) {
             UBYTE *row = raw + at;
             if (at >= got)
-                return 0;               /* no more rows came */
+                return got;             /* no more rows came */
             unfilter(row[0], row + 1, prev, rb, bpp);
-            if (h->interlace) {
-                ULONG ty = adam7[pass][1] + y * adam7[pass][3];
-                convert(h, row + 1, pw, argb + ty * h->width + adam7[pass][0], adam7[pass][2]);
-            } else
-                convert(h, row + 1, pw, argb + y * h->width, 1);
             prev = row + 1;
             at += rb + 1;
         }
     }
+    return got;
+}
+
+/* The colours: rows y0 to y1 - 1 of the picture, each pixel written (0 where the stream stopped short).
+ * Rows are independent here, so bands of them can go to other cores (omc_bands, the Team, 11 October
+ * 2026): this reads only *conv, the header and raw, and writes only its own rows of argb. */
+void png_rows(APTR conv, ULONG y0, ULONG y1)
+{
+    const struct png_conv *c = conv;
+    const struct png_head *h = c->h;
+    ULONG w = h->width, y;
+    if (y1 > h->height)
+        y1 = h->height;
+    if (!h->interlace) {
+        ULONG rb = rowbytes(h, w);
+        for (y = y0; y < y1; y++) {
+            ULONG at = y * (rb + 1), *d = c->argb + y * w, x;
+            if (at < c->got)
+                convert(h, c->raw + at + 1, w, d, 1);
+            else
+                for (x = 0; x < w; x++)
+                    d[x] = 0;
+        }
+    } else {
+        ULONG at = 0, i;
+        LONG pass;
+        for (i = y0 * w; i < y1 * w; i++)
+            c->argb[i] = 0;
+        for (pass = 0; pass < 7; pass++) {
+            ULONG pw, ph, rb;
+            pass_size(h, pass, &pw, &ph);
+            if (!pw)
+                continue;
+            rb = rowbytes(h, pw);
+            for (y = 0; y < ph; y++, at += rb + 1) {
+                ULONG ty = adam7[pass][1] + y * adam7[pass][3];
+                if (at >= c->got)
+                    return;
+                if (ty >= y0 && ty < y1)
+                    convert(h, c->raw + at + 1, pw, c->argb + ty * w + adam7[pass][0], adam7[pass][2]);
+            }
+        }
+    }
+}
+
+LONG png_decode(const struct png_head *h, const UBYTE *idat, UBYTE *raw, ULONG *argb, APTR work)
+{
+    struct png_conv c;
+    c.h = h;
+    c.raw = raw;
+    c.argb = argb;
+    if (!(c.got = png_unpack(h, idat, raw, work)))
+        return -1;
+    png_rows(&c, 0, h->height);
     return 0;
 }

@@ -1,4 +1,5 @@
-/* openmulticore.library 0.1 (DalsinAI/openamigamulticore at bef8aae, include/), copied for openmodule.datatype. Copyright (c) 2026 Dalsin Limited. OpenMulticore, MIT licence. */
+/* (DalsinAI/openamigamulticore, branch tern/bands, include/, copied for openmodule.datatype and openpng.datatype.) */
+/* Copyright (c) 2026 Dalsin Limited. OpenMulticore, MIT licence (LICENSE). */
 #ifndef _PROTO_OPENMULTICORE_H
 #define _PROTO_OPENMULTICORE_H
 #include <exec/types.h>

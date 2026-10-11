@@ -9,10 +9,11 @@
  * or RGB colour) and Adam7 interlacing. The picture comes out as 0xAARRGGBB
  * words, one row after the other; 16-bit samples are taken to 8.
  *
- * Built to run as a job on another core later (openmulticore.library, the
- * cores board): png_decode() makes no OS calls, writes no static data and
- * touches only the memory it is handed, which the caller allocates from the
- * sizes png_head() works out.
+ * Built to run as a job on another core (openmulticore.library, the cores
+ * board): png_decode() makes no OS calls, writes no static data and touches
+ * only the memory it is handed, which the caller allocates from the sizes
+ * png_head() works out. Its colour stage, png_rows(), is shared between the
+ * cores in bands of rows (11 October 2026).
  *
  * MIT, Copyright (c) 2026 Dalsin Limited.
  */
@@ -53,5 +54,19 @@ void png_gather(const UBYTE *file, ULONG len, UBYTE *idat);
  * the picture to argb (width * height words). work is PNG_WORKSIZE bytes,
  * longword aligned. 0, or -1 on a damaged stream. No OS calls. */
 LONG png_decode(const struct png_head *h, const UBYTE *idat, UBYTE *raw, ULONG *argb, APTR work);
+
+/* png_decode() in its two parts, so the second can be shared between cores (11 October 2026):
+ * png_unpack() inflates and undoes the filters, row after row (one core); it returns how many bytes of
+ * raw came, or 0 on a damaged stream. png_rows() then writes rows y0 to y1 - 1 of argb from raw; rows are
+ * independent, so it can run in bands on several cores at once (openmulticore's omc_bands), and it makes
+ * no OS calls, writes nothing but those rows, and reads only *conv, the header and raw. */
+struct png_conv {
+    const struct png_head *h;
+    const UBYTE *raw;
+    ULONG got;                           /* png_unpack()'s answer */
+    ULONG *argb;                         /* width * height words */
+};
+ULONG png_unpack(const struct png_head *h, const UBYTE *idat, UBYTE *raw, APTR work);
+void png_rows(APTR conv, ULONG y0, ULONG y1);
 
 #endif

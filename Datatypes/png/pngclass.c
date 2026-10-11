@@ -21,6 +21,14 @@
  * while the system's png.datatype stays installed and untouched. Removing
  * the descriptor gives PNGs back to it.
  *
+ * The colours (png_rows: each row to ARGB, and Adam7's placing) are shared
+ * between the cores of a cores board in bands of rows, with omc_bands()
+ * from openmulticore (include/openmulticore/bands.h, copied in), when the
+ * picture is big enough to gain (OPENPNG_BANDS_MIN). With no
+ * openmulticore.library or no board, or after any error on a core, the rows
+ * are done here: the same bytes either way. Inflate and the filters stay on
+ * one core, as each row needs the one before (11 October 2026, the Team).
+ *
  * MIT, Copyright (c) 2026 Dalsin Limited.
  */
 #include <exec/memory.h>
@@ -37,12 +45,19 @@
 
 #include "dtlib.h"
 #include "pngdecode.h"
+#ifndef OPENPNG_NO_OMC
+#include <openmulticore/bands.h>
+#endif
+
+/* Pictures with fewer pixels than this keep their colours on this CPU: a
+ * call to the cores costs about a millisecond of setup (OMCBands, Instance-32). */
+#define OPENPNG_BANDS_MIN (320UL * 240UL)
 
 const char LibName[] = "openpng.datatype";
-const char LibIdString[] = "openpng.datatype 47.3 (11.10.2026) Dalsin Limited";
+const char LibIdString[] = "openpng.datatype 47.4 (11.10.2026) Dalsin Limited";
 const UWORD LibVersion = 47;
-const UWORD LibRevision = 3;
-static const char version[] __attribute__((used)) = "$VER: openpng.datatype 47.3 (11.10.2026)";
+const UWORD LibRevision = 4;
+static const char version[] __attribute__((used)) = "$VER: openpng.datatype 47.4 (11.10.2026)";
 
 const char dt_superclass[] = "picture.datatype";
 const UWORD dt_superversion = 43;
@@ -65,12 +80,33 @@ static APTR big_alloc(ULONG n)
     return p ? p : AllocVec(n, MEMF_ANY);
 }
 
+/* The colours from raw into argb: in bands on the cores when there are
+ * some and the picture is big, else here. */
+static void colours(struct png_conv *c)
+{
+#ifndef OPENPNG_NO_OMC
+    if (c->h->width * c->h->height >= OPENPNG_BANDS_MIN) {
+        omc_bands(NULL, png_rows, c, c->h->height, c->argb, c->h->width * 4, 0, NULL);
+        return;
+    }
+#endif
+    png_rows(c, 0, c->h->height);
+}
+
+/* The header and the colour stage's arguments, in Fast RAM when there is
+ * any: a band on a core reads them. */
+struct png_state {
+    struct png_head h;
+    struct png_conv c;
+};
+
 static BOOL loadPNG(Class *cl, Object *o)
 {
     struct BitMapHeader *bmh = NULL;
+    struct png_state *st;
     struct png_head *h;
     STRPTR name = NULL;
-    UBYTE *file, *idat = NULL, *raw = NULL;
+    UBYTE *file, *idat = NULL, *raw = NULL, *argb_mem = NULL;
     ULONG *argb = NULL, size = 0;
     APTR work = NULL;
     LONG err = ERROR_NO_FREE_STORE;
@@ -80,28 +116,35 @@ static BOOL loadPNG(Class *cl, Object *o)
         SetIoErr(ERROR_OBJECT_WRONG_TYPE);
         return FALSE;
     }
-    if (!(h = AllocVec(sizeof(*h), MEMF_ANY)))
+    if (!(st = big_alloc(sizeof(*st))))
         return FALSE;
+    h = &st->h;
     if (!(file = dt_read_source(o, &size))) {
         err = IoErr();
-        FreeVec(h);
+        FreeVec(st);
         SetIoErr(err);
         return FALSE;
     }
     if (png_read_head(file, size, h)) {
         FreeVec(file);
-        FreeVec(h);
+        FreeVec(st);
         SetIoErr(DTERROR_INVALID_DATA);
         return FALSE;
     }
     if ((idat = big_alloc(h->idat_len)))
         png_gather(file, size, idat);
     FreeVec(file);
-    if (idat && (raw = big_alloc(h->raw_len)) && (argb = big_alloc(h->width * h->height * 4))
+    /* argb starts on a 16-byte line of its own, so the cores can take bands of it (bands.h) */
+    if (idat && (raw = big_alloc(h->raw_len)) && (argb_mem = big_alloc(h->width * h->height * 4 + 15))
         && (work = AllocVec(PNG_WORKSIZE, MEMF_ANY))) {
-        if (png_decode(h, idat, raw, argb, work) == 0)
+        argb = (ULONG *)(((ULONG)argb_mem + 15) & ~15UL);
+        if ((st->c.got = png_unpack(h, idat, raw, work))) {
+            st->c.h = h;
+            st->c.raw = raw;
+            st->c.argb = argb;
+            colours(&st->c);
             ok = TRUE;
-        else
+        } else
             err = DTERROR_INVALID_DATA;
     }
     if (work) FreeVec(work);
@@ -125,8 +168,8 @@ static BOOL loadPNG(Class *cl, Object *o)
         if (!ok)
             err = ERROR_NO_FREE_STORE;
     }
-    if (argb) FreeVec(argb);
-    FreeVec(h);
+    if (argb_mem) FreeVec(argb_mem);
+    FreeVec(st);
     if (!ok)
         SetIoErr(err);
     return ok;
