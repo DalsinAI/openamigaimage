@@ -5,11 +5,13 @@
  * transparency and Adam7 interlacing.
  *
  * Why it is here: on AmigaChrome's Instance-32 (11 October 2026), asking
- * AmigaOS 3.2.3's png.datatype and picture.datatype for a picture's pixels
- * as ARGB (PDTM_READPIXELARRAY, PBPAFMT_ARGB) crashed the machine inside
- * picture.datatype's 24-bit to ARGB converter. This class always hands the
- * superclass 32-bit ARGB (bmh_Depth 32), so the superclass keeps ARGB and a
- * read as ARGB is a plain copy; that converter is never reached.
+ * picture.datatype for a picture's pixels (PDTM_READPIXELARRAY, as ARGB)
+ * wrote them to the wrong place and took the machine down, with AmigaOS
+ * 3.2.3's png.datatype (picture.datatype's 24-bit to ARGB converter) and
+ * with this class too (its RGBA to ARGB one). So this class keeps the
+ * picture as ARGB itself and answers PDTM_READPIXELARRAY from that copy, in
+ * ARGB, RGBA, RGB or GREY8; picture.datatype gets the same ARGB pixels
+ * (bmh_Depth 32) for drawing, and only a LUT8 read is left to it.
  *
  * DEVS:DataTypes/OpenPNG (build.sh) matches the PNG signature and the IHDR
  * that must follow it: a longer mask than the system's PNG descriptor, which
@@ -35,14 +37,19 @@
 #include "pngdecode.h"
 
 const char LibName[] = "openpng.datatype";
-const char LibIdString[] = "openpng.datatype 47.1 (11.10.2026) Dalsin Limited";
+const char LibIdString[] = "openpng.datatype 47.2 (11.10.2026) Dalsin Limited";
 const UWORD LibVersion = 47;
-const UWORD LibRevision = 1;
-static const char version[] __attribute__((used)) = "$VER: openpng.datatype 47.1 (11.10.2026)";
+const UWORD LibRevision = 2;
+static const char version[] __attribute__((used)) = "$VER: openpng.datatype 47.2 (11.10.2026)";
 
 const char dt_superclass[] = "picture.datatype";
 const UWORD dt_superversion = 43;
-ULONG dt_instsize = 0;
+/* The picture as ARGB, kept for PDTM_READPIXELARRAY. */
+struct png_inst {
+    ULONG *argb;
+    ULONG width, height;
+};
+ULONG dt_instsize = sizeof(struct png_inst);
 
 BOOL dt_init(void)
 {
@@ -63,6 +70,7 @@ static APTR big_alloc(ULONG n)
 
 static BOOL loadPNG(Class *cl, Object *o)
 {
+    struct png_inst *in = INST_DATA(cl, o);
     struct BitMapHeader *bmh = NULL;
     struct png_head *h;
     STRPTR name = NULL;
@@ -72,6 +80,8 @@ static BOOL loadPNG(Class *cl, Object *o)
     LONG err = ERROR_NO_FREE_STORE;
     BOOL ok = FALSE;
 
+    in->argb = NULL;
+    in->width = in->height = 0;
     if (GetDTAttrs(o, PDTA_BitMapHeader, (ULONG)&bmh, DTA_Name, (ULONG)&name, TAG_DONE) < 1 || !bmh) {
         SetIoErr(ERROR_OBJECT_WRONG_TYPE);
         return FALSE;
@@ -118,7 +128,12 @@ static BOOL loadPNG(Class *cl, Object *o)
             TAG_DONE);
         ok = DoSuperMethod(cl, o, PDTM_WRITEPIXELARRAY, (ULONG)argb, PBPAFMT_ARGB, h->width * 4,
             0, 0, h->width, h->height) ? TRUE : FALSE;
-        if (!ok)
+        if (ok) {
+            in->argb = argb;           /* kept for PDTM_READPIXELARRAY */
+            in->width = h->width;
+            in->height = h->height;
+            argb = NULL;
+        } else
             err = ERROR_NO_FREE_STORE;
     }
     if (argb) FreeVec(argb);
@@ -128,8 +143,50 @@ static BOOL loadPNG(Class *cl, Object *o)
     return ok;
 }
 
+/* PDTM_READPIXELARRAY from the ARGB copy. FALSE when the rectangle isn't in the picture. */
+static ULONG readPixels(struct png_inst *in, struct pdtBlitPixelArray *m)
+{
+    ULONG x, y, w = m->pbpa_Width, h = m->pbpa_Height;
+    UBYTE *row = (UBYTE *)m->pbpa_PixelData;
+    if (!row || m->pbpa_Left >= in->width || m->pbpa_Top >= in->height)
+        return FALSE;
+    if (w > in->width - m->pbpa_Left)
+        w = in->width - m->pbpa_Left;
+    if (h > in->height - m->pbpa_Top)
+        h = in->height - m->pbpa_Top;
+    for (y = 0; y < h; y++, row += m->pbpa_PixelArrayMod) {
+        const ULONG *s = in->argb + (m->pbpa_Top + y) * in->width + m->pbpa_Left;
+        UBYTE *d = row;
+        switch (m->pbpa_PixelFormat) {
+        case PBPAFMT_ARGB:
+            CopyMem((APTR)s, d, w * 4);
+            break;
+        case PBPAFMT_RGBA:
+            for (x = 0; x < w; x++, d += 4) {
+                ULONG p = s[x];
+                d[0] = (UBYTE)(p >> 16); d[1] = (UBYTE)(p >> 8); d[2] = (UBYTE)p; d[3] = (UBYTE)(p >> 24);
+            }
+            break;
+        case PBPAFMT_RGB:
+            for (x = 0; x < w; x++, d += 3) {
+                ULONG p = s[x];
+                d[0] = (UBYTE)(p >> 16); d[1] = (UBYTE)(p >> 8); d[2] = (UBYTE)p;
+            }
+            break;
+        default:                       /* PBPAFMT_GREY8 */
+            for (x = 0; x < w; x++) {
+                ULONG p = s[x];
+                d[x] = (UBYTE)((((p >> 16) & 255) * 77 + ((p >> 8) & 255) * 150 + (p & 255) * 29) >> 8);
+            }
+            break;
+        }
+    }
+    return TRUE;
+}
+
 ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
 {
+    struct png_inst *in;
     switch (msg->MethodID) {
     case OM_NEW: {
         Object *obj = (Object *)DoSuperMethodA(cl, o, msg);
@@ -141,6 +198,28 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
         }
         return (ULONG)obj;
     }
+    case PDTM_READPIXELARRAY: {
+        ULONG f = ((struct pdtBlitPixelArray *)msg)->pbpa_PixelFormat;
+        in = INST_DATA(cl, o);
+        if (in->argb && (f == PBPAFMT_ARGB || f == PBPAFMT_RGBA || f == PBPAFMT_RGB || f == PBPAFMT_GREY8))
+            return readPixels(in, (struct pdtBlitPixelArray *)msg);
+        return DoSuperMethodA(cl, o, msg);
+    }
+    case PDTM_WRITEPIXELARRAY:
+        /* Someone changes the picture: the copy would be stale, so reads go to picture.datatype from now on. */
+        in = INST_DATA(cl, o);
+        if (in->argb) {
+            FreeVec(in->argb);
+            in->argb = NULL;
+        }
+        return DoSuperMethodA(cl, o, msg);
+    case OM_DISPOSE:
+        in = INST_DATA(cl, o);
+        if (in->argb) {
+            FreeVec(in->argb);
+            in->argb = NULL;
+        }
+        return DoSuperMethodA(cl, o, msg);
     default:
         return DoSuperMethodA(cl, o, msg);
     }
