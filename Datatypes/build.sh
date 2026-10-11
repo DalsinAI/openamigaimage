@@ -206,6 +206,10 @@ picdesc OTF-TT "OpenType font (TrueType outlines)" otf "#?.otf" 0 1 0 0
 DT_PRIORITY=1 picdesc RAW "Camera RAW" raw \
     "#?.(cr2|cr3|crw|nef|nrw|arw|srf|sr2|dng|orf|rw2|raf|pef|srw|x3f|erf|kdc|dcr|mrw|3fr|iiq|rwl)"
 
+# --- openpng.datatype ---------------------------------------------------------
+# PNG on the Amiga itself, our own decoder (png/pngclass.c, png/build.sh).
+OS32_GCC16="$S" PREFIX="$OUT" sh "$HERE/png/build.sh"
+
 # --- opensound.datatype -------------------------------------------------------
 # FLAC, Ogg (Vorbis, Opus), AAC/M4A, ALAC, WMA and MP3, decoded by the
 # media.decode/1 service on the services card or a paired Cradle.
