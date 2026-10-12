@@ -1,17 +1,18 @@
 # Datatypes
 
 `webp.datatype`, `webm.datatype`, `openpicture.datatype`, `openpng.datatype`,
-`opensound.datatype`, `openmodule.datatype`, `opendoc.datatype` and
-`openvideo.datatype` for AmigaOS 3.x, by Dalsin Limited. They let any
-datatypes program (MultiView, OpenBrowser, OpenPlay, a picture viewer) open
-WebP pictures, WebM video, AVIF, HEIC, JPEG XL, camera RAW, Photoshop and
+`opentga.datatype`, `opensound.datatype`, `openmodule.datatype`,
+`opendoc.datatype` and `openvideo.datatype` for AmigaOS 3.x, by Dalsin
+Limited. They let any datatypes program (MultiView, OpenBrowser, OpenPlay, a
+picture viewer) open WebP pictures, WebM video, Targa (TGA) pictures, AVIF,
+HEIC, JPEG XL, camera RAW, Photoshop and
 GIMP pictures, FLAC, Ogg Vorbis, Opus, AAC, ALAC, WMA and MP3 sounds, MIDI
 and SID tunes, music modules (ProTracker MOD, MED and OctaMED, Oktalyzer,
 DigiBooster, FastTracker 2 XM, Scream Tracker 3 S3M, Impulse Tracker IT and
 more), office documents, PostScript, e-books, and MP4, MKV, AVI, WMV and
 MPEG video. They run on a 68020 or better, with or without an FPU. WebP,
 WebM and music modules need no other libraries and play on the Amiga
-itself; the others are decoded by a Cradle (below).
+itself, as do PNG and TGA; the others are decoded by a Cradle (below).
 
 **Status:** Working on the bench: both decode exactly as the same libraries
 do on x86 cores. Not yet run on real Amiga hardware; WebM playback inside MultiView
@@ -24,6 +25,7 @@ is not yet checked (see Tested).
 | `webp.datatype` | picture | libwebp 1.6.0 | Lossy, lossless and alpha WebP, through picture.datatype's 24-bit mode (32-bit with alpha). An animated WebP shows its first frame. |
 | `openpicture.datatype` | picture | the `media.decode/1` service | AVIF and HEIC/HEIF (iPhone photos), JPEG XL, camera RAW (Canon, Nikon, Sony, DNG and more), Photoshop PSD, GIMP XCF, OpenEXR, Radiance HDR, QOI, DDS, JPEG 2000, OpenRaster and Krita (their flattened picture), comic books (CBZ, the first page), SVG (drawn at its own size) and TrueType/OpenType fonts (a sample sheet), decoded on the services card or a paired Cradle and sent back as 32-bit ARGB, scaled down to fit `ENV:OpenImage/MaxSide` (default 4096). A sequence shows its first picture. |
 | `openpng.datatype` | picture | our own decoder (`png/pngdecode.c`) | PNG: every colour type and bit depth, transparency and Adam7 interlacing, decoded on the Amiga itself (no zlib, no libpng) and handed to picture.datatype as 32-bit ARGB, so the pixels read back as ARGB are the ones decoded, alpha included. A pixel read or write with no pixel array is refused: that is what `PDTM_READPIXELARRAY` sent with `DoDTMethodA()` instead of `DoMethodA()` arrives as, and picture.datatype would write the picture from address 0. Its descriptor, `OpenPNG`, matches the signature and the IHDR after it, a longer mask than the system's `PNG`, so it is tried first while the system's png.datatype stays installed. |
+| `opentga.datatype` | picture | our own decoder (`tga/tgadecode.c`) | Targa (TGA) pictures, written from Truevision's TGA 2.0 specification: uncompressed and run-length encoded; colour-mapped (8 or 16-bit indexes, 15, 16, 24 or 32-bit colour maps), true-colour of 15, 16, 24 and 32 bits, and greyscale of 8 bits or 16 with alpha; rows from the bottom or the top, and right to left. Decoded on the Amiga itself and handed to picture.datatype as 32-bit ARGB, as openpng.datatype does. Alpha comes from a 32-bit pixel, a 16-bit pixel's top bit or a 16-bit grey's second byte when the header gives alpha bits; a TGA 2.0 extension area that says there is none wins, premultiplied alpha is undone, and an alpha channel that is 0 everywhere counts as none. A TGA has no signature, so its descriptor, `OpenTGA`, goes by the name (`.tga`, `.targa`, `.icb`, `.vda`, `.vst`, in any case) and is tried after every descriptor with a mask. |
 | `opensound.datatype` | sound | the `media.decode/1` service | FLAC, Ogg (Vorbis, Opus), AAC/M4A, ALAC, WMA and MP3; MIDI (played through FluidSynth on the Cradle), C64 SID tunes (the first three minutes, through sidplayfp) and XM, IT and S3M modules (libopenmpt), sent back as 16-bit PCM at a rate Paula plays (`ENV:OpenImage/SoundRate`, default 28000 Hz: 44.1 kHz comes as 22.05 kHz). 16-bit stereo with sound.datatype V44 or newer, else 8-bit mono. |
 | `openmodule.datatype` | sound | libxmp 4.7.3 | Music modules, played on the Amiga itself: ProTracker, NoiseTracker and SoundTracker MODs (M.K., M!K!, FLT4, FLT8, 2CHN to 32CH, and 15-instrument SoundTracker by its name), MED and OctaMED (MMD0 to MMD3, MED 2 to 4), Oktalyzer, DigiBooster and DigiBooster Pro, FastTracker 2 XM, Scream Tracker 3 S3M and Impulse Tracker IT (libxmp reads some 60 module formats in all; a descriptor for another is all it takes). Streamed by a player process of its own, so a song starts at once and never sits in memory whole: 16-bit stereo through AHI (`ahi.device` unit 0, at its own rate), else 8-bit stereo on two Paula channels. Mixed on a cores board core (AmigaChrome's, through `openmulticore.library`), else by `media.decode/1` on a services card or a paired Cradle, else on this CPU, and the datatype says which (`OIA_DecodedBy`, `include/datatypes/openimage.h`; `openmodule/DESIGN.md` sections 2 and 7). The module's title and length show; play, pause, stop, volume and repeat work as for a sound. |
 | `opendoc.datatype` | picture | the `doc.render/1` service | DOCX, XLSX, PPTX, OpenDocument, Word/Excel/PowerPoint 97, RTF, WordPerfect, PostScript and EPS, EPUB e-books, Markdown and CSV, laid out by LibreOffice or Apache OpenOffice (Ghostscript for PostScript) on the Cradle and shown as their pages one under the other, `ENV:OpenImage/DocWidth` pixels wide (default 800), the first `ENV:OpenImage/DocPages` pages (default 8). |
@@ -64,6 +66,8 @@ Copy the files from `out/` (after building) to the same places on the Amiga:
 | `Devs/DataTypes/AVIF`, `AVIS`, `HEIC`, `HEIX`, `HEIF`, `JXL`, `JXL-ISO`, `RAW`, `PSD`, `XCF`, `EXR`, `HDR`, `HDR-Bin`, `QOI`, `DDS`, `JP2`, `J2K`, `ORA`, `KRA`, `CBZ`, `SVG`, `TTF`, `OTF`, `OTF-TT` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/openpng.datatype` | `SYS:Classes/DataTypes/` |
 | `Devs/DataTypes/OpenPNG` | `DEVS:DataTypes/` |
+| `Classes/DataTypes/opentga.datatype` | `SYS:Classes/DataTypes/` |
+| `Devs/DataTypes/OpenTGA` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/opensound.datatype` | `SYS:Classes/DataTypes/` |
 | `Devs/DataTypes/FLAC`, `Ogg`, `M4A`, `M4B`, `WMA`, `MP3-ID3`, `AAC`, `MIDI`, `PSID`, `RSID`, `XM`, `IT`, `S3M` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/openmodule.datatype` | `SYS:Classes/DataTypes/` |
@@ -247,6 +251,33 @@ tests), modules from the wider world, `DTA_Repeat` and `DTA_Immediate`,
 the ladder over a paired Cradle on the LAN, AHI modes other than ACAHI's
 Host mix, and AHI on real hardware.
 
+### opentga.datatype
+
+On x86 cores, 12 October 2026: `tests/test-tga.sh` makes 60 files with
+`tests/make-tga.py` (53 pictures of every kind above, uncompressed, RLE
+with packets inside rows and across them, bottom-up, top-down and right to
+left, plus 7 that are not TGAs it reads), decodes each with
+`tga/tgadecode.c` built for the host (`tests/tgatest.c`) and compares every
+byte of every picture with what make-tga.py works out: all 60 as expected.
+Pillow 12.1.1 reads 24 of them the same way; the others are kinds it reads
+otherwise or not at all (make-tga.py lists them). Then each file cut short at every
+length and with every header byte changed, 136,452 files, under
+AddressSanitizer and UBSan: nothing read or written outside the file or
+the picture.
+
+On AmigaOS 3.2.3 on AC090 (68040 with FPU), a lab copy of Instance-32,
+12 October 2026, built with os32-gcc16: `tests/dtpic.c` opens each file
+through datatypes.library and reads it back as ARGB. All 53 pictures give
+the checksums in make-tga.py's `expected.txt`, and the 7 others fail as
+invalid data (2008). A name in capitals (`PIC.TGA`) and `.targa` open too.
+3.2.3's MultiView, OpenView 0.5 and OpenPlay 0.1.3 show a 480 x 320 32-bit
+picture with alpha (OpenPlay: "opentga.datatype - 480 x 320 - Targa
+picture - decoded by this Amiga"), and a 1920 x 1080 RLE TGA named in
+`WBPattern.prefs` is the Workbench backdrop.
+
+Not yet checked: real Amiga hardware, TGA files from the wider world (every
+test file is make-tga.py's), 8-bit screens, and the speed on a real 68k.
+
 ## Known issues
 
 - picture.datatype 47.19 keeps the alpha of a picture's last pixel only when
@@ -254,10 +285,10 @@ Host mix, and AHI on real hardware.
 - `openpicture.datatype`: not yet run on the bench. Rotation and mirroring
   stored in AVIF files are not applied yet (HEIC's are), nor EXIF rotation.
   No 68k decoder. Camera RAW is chosen by its name, ahead of a TIFF
-  datatype, and SVG by its name, ahead of the text datatype. TGA, PCX, ICO
+  datatype, and SVG by its name, ahead of the text datatype. PCX, ICO
   and the other classic formats are left to the Amiga's own datatypes, which
   work without a Cradle (`media.decode/1` still reads ICO, for OpenBrowser's
-  site icons). An APNG is told by an acTL chunk straight after IHDR, or by
+  site icons); TGA has its own, `opentga.datatype`. An APNG is told by an acTL chunk straight after IHDR, or by
   the name `.apng`; others show as a still PNG. An APNG's frames come
   composited on black, without alpha (animation.datatype has none), at a
   steady rate that keeps its uneven frame delays; it repeats when its
@@ -313,7 +344,7 @@ Host mix, and AHI on real hardware.
 
 ## Licence
 
-The datatype code (`build.sh`, `common/`, `include/`, `webp/`, `webm/`, `openpicture/`, `opensound/`, `openmodule/`, `opendoc/`, `openvideo/`, `tests/`) is
+The datatype code (`build.sh`, `common/`, `include/`, `webp/`, `webm/`, `openpicture/`, `png/`, `tga/`, `opensound/`, `openmodule/`, `opendoc/`, `openvideo/`, `tests/`) is
 MIT, Copyright (c) 2026 Dalsin Limited, as the rest of this repository.
 libwebp and libvpx keep their BSD licences and the WebM Project's patent
 grants (`../upstream/libwebp/`, `../upstream/libvpx/`); a patch to their
