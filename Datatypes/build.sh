@@ -210,6 +210,11 @@ DT_PRIORITY=1 picdesc RAW "Camera RAW" raw \
 # PNG on the Amiga itself, our own decoder (png/pngclass.c, png/build.sh).
 OS32_GCC16="$S" PREFIX="$OUT" sh "$HERE/png/build.sh"
 
+# --- opentga.datatype ---------------------------------------------------------
+# Targa (TGA) on the Amiga itself, our own decoder (tga/tgaclass.c,
+# tga/build.sh); tests/test-tga.sh checks the decoder on x86 or ARM64 cores.
+OS32_GCC16="$S" PREFIX="$OUT" sh "$HERE/tga/build.sh"
+
 # --- opensound.datatype -------------------------------------------------------
 # FLAC, Ogg (Vorbis, Opus), AAC/M4A, ALAC, WMA and MP3, decoded by the
 # media.decode/1 service on the services card or a paired Cradle.
