@@ -112,6 +112,8 @@ from the libraries above:
   Cradle through `doc.render/1`.
 - `openvideo.datatype`: MP4, MKV, AVI, WMV and MPEG video, sent a frame at a
   time by a Cradle through `media.decode/1`.
+- `opentga.datatype`: Targa (TGA) pictures of every kind, uncompressed and
+  RLE, with alpha, decoded on the Amiga itself by the Team's own decoder.
 
 Both decode on the bench exactly as their libraries do on x86 cores. Installing,
 building and the test results are in [Datatypes/README.md](Datatypes/README.md).
