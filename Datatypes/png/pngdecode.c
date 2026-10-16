@@ -8,7 +8,7 @@
  * ends early or goes wrong keeps the rows it reached (the rest stay clear),
  * as web browsers show a cut-off picture.
  *
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #include "pngdecode.h"
 

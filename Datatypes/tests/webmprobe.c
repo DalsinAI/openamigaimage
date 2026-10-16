@@ -2,7 +2,7 @@
  * webm.datatype check: read a WebM file with the datatype's own reader,
  * decode every frame with libvpx and print a checksum of each picture, so
  * the Amiga's results can be compared with a PC's.
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #include <stdio.h>
 #include <stdlib.h>

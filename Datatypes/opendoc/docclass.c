@@ -11,7 +11,7 @@
  * With neither a card nor a Cradle the document does not open yet (a text
  * view laid out on the 68k comes later).
  *
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #include <string.h>
 #include <exec/memory.h>
@@ -31,7 +31,7 @@
 #include "dtservice.h"
 
 const char LibName[] = "opendoc.datatype";
-const char LibIdString[] = "opendoc.datatype 47.1 (5.10.2026) Dalsin Limited, laid out by doc.render/1";
+const char LibIdString[] = "opendoc.datatype 47.1 (5.10.2026) AmigaChrome Team, laid out by doc.render/1";
 const UWORD LibVersion = 47;
 const UWORD LibRevision = 1;
 static const char version[] __attribute__((used)) = "$VER: opendoc.datatype 47.1 (5.10.2026)";

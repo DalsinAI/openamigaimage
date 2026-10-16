@@ -2,9 +2,9 @@
  * openamigaimage datatypes: attributes of their own, for players and
  * viewers that want to say more than the standard ones do. A datatype that
  * doesn't know one answers OM_GET with FALSE, so a program asks and falls
- * back. TAG_USER with Dalsin's manufacturer number ($DA15) in the middle.
+ * back. TAG_USER with the AmigaChrome Team's manufacturer number ($DA15) in the middle.
  *
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #ifndef DATATYPES_OPENIMAGE_H
 #define DATATYPES_OPENIMAGE_H

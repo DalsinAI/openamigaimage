@@ -1,6 +1,6 @@
 /*
  * openamigaimage datatypes: openservice.device calls (dtservice.h).
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #include <string.h>
 #include <exec/io.h>

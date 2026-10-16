@@ -20,7 +20,7 @@
  * printed too, asked the way sound.datatype answers it: a pointer to the
  * object's own timeval.
  *
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #include <stdio.h>
 #include <stdlib.h>

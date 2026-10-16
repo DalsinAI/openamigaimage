@@ -2,7 +2,7 @@
 # openpng.datatype and its descriptor, DEVS:DataTypes/OpenPNG, for AmigaOS 3.x
 # (pngclass.c). Our own code only: no upstream tarballs. Built with the
 # os32-gcc16 compiler, as the other datatypes (../build.sh runs this too).
-# MIT, Copyright (c) 2026 Dalsin Limited.
+# MIT, Copyright (c) 2026 AmigaChrome Team.
 #
 #   OS32_GCC16   compiler root holding prefix/ (default ~/AmigaChrome/stoves/os32-gcc16)
 #   PREFIX       where Classes/ and Devs/ go (default ../out)

@@ -1,6 +1,6 @@
 /* webp.datatype check: decode WebP files with libwebp alone (no datatypes)
  * and print the same ARGB checksum as tests/dtpic.c, on a PC or an Amiga.
- * MIT, Copyright (c) 2026 Dalsin Limited. */
+ * MIT, Copyright (c) 2026 AmigaChrome Team. */
 #include <stdio.h>
 #include <stdlib.h>
 #include "webp/decode.h"
