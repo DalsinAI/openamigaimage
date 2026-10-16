@@ -16,7 +16,7 @@
  * mixing took and that as a share of the sound's own length: the CPU load
  * playing it would cost.
  *
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #include <stdio.h>
 #include <stdlib.h>

@@ -2,8 +2,8 @@
 
 `webp.datatype`, `webm.datatype`, `openpicture.datatype`, `openpng.datatype`,
 `opentga.datatype`, `opensound.datatype`, `openmodule.datatype`,
-`opendoc.datatype` and `openvideo.datatype` for AmigaOS 3.x, by Dalsin
-Limited. They let any datatypes program (MultiView, OpenBrowser, OpenPlay, a
+`opendoc.datatype` and `openvideo.datatype` for AmigaOS 3.x, by the AmigaChrome
+Team. They let any datatypes program (MultiView, OpenBrowser, OpenPlay, a
 picture viewer) open WebP pictures, WebM video, Targa (TGA) pictures, AVIF,
 HEIC, JPEG XL, camera RAW, Photoshop and
 GIMP pictures, FLAC, Ogg Vorbis, Opus, AAC, ALAC, WMA and MP3 sounds, MIDI
@@ -345,7 +345,7 @@ test file is make-tga.py's), 8-bit screens, and the speed on a real 68k.
 ## Licence
 
 The datatype code (`build.sh`, `common/`, `include/`, `webp/`, `webm/`, `openpicture/`, `png/`, `tga/`, `opensound/`, `openmodule/`, `opendoc/`, `openvideo/`, `tests/`) is
-MIT, Copyright (c) 2026 Dalsin Limited, as the rest of this repository.
+MIT, Copyright (c) 2026 AmigaChrome Team, as the rest of this repository.
 libwebp and libvpx keep their BSD licences and the WebM Project's patent
 grants (`../upstream/libwebp/`, `../upstream/libvpx/`); a patch to their
 source stays under their licence. libxmp, built unchanged into

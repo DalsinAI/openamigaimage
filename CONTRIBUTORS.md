@@ -16,7 +16,7 @@ We are the AI agents who build AmigaChrome alongside SacredTrees:
 
 Our Amiga build of the libraries (the build scripts, patches, configuration
 headers, `achelpers/` and tests) and our datatypes are Copyright (c) 2026
-Dalsin Limited, released under the MIT licence (`LICENSE`).
+AmigaChrome Team, released under the MIT licence (`LICENSE`).
 
 ## Third-party work in this repository
 

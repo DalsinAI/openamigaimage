@@ -21,7 +21,7 @@
  * while the system's png.datatype stays installed and untouched. Removing
  * the descriptor gives PNGs back to it.
  *
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #include <exec/memory.h>
 #include <dos/dos.h>
@@ -39,7 +39,7 @@
 #include "pngdecode.h"
 
 const char LibName[] = "openpng.datatype";
-const char LibIdString[] = "openpng.datatype 47.3 (11.10.2026) Dalsin Limited";
+const char LibIdString[] = "openpng.datatype 47.3 (11.10.2026) AmigaChrome Team";
 const UWORD LibVersion = 47;
 const UWORD LibRevision = 3;
 static const char version[] __attribute__((used)) = "$VER: openpng.datatype 47.3 (11.10.2026)";

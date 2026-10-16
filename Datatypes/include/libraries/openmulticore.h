@@ -1,7 +1,7 @@
 /* (DalsinAI/openamigamulticore at bef8aae, include/, copied for openmodule.datatype.)
  * openmulticore.library 0.1: run 68k functions on extra cores, or on the
  * main CPU when there are none (DESIGN.md sections 0 and 4).
- * MIT, Copyright (c) 2026 Dalsin Limited. */
+ * MIT, Copyright (c) 2026 AmigaChrome Team. */
 #ifndef LIBRARIES_OPENMULTICORE_H
 #define LIBRARIES_OPENMULTICORE_H
 

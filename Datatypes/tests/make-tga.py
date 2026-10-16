@@ -28,7 +28,7 @@ With --pillow, each picture Pillow (the Python imaging library, when it is
 installed) also reads is checked against it: Pillow decodes these files as
 this script says they should decode.
 
-MIT, Copyright (c) 2026 Dalsin Limited.
+MIT, Copyright (c) 2026 AmigaChrome Team.
 """
 import os
 import struct

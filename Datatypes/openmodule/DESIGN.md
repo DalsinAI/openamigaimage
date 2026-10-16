@@ -249,7 +249,7 @@ The Team, 8 October 2026: heavy modules on slow Amigas should go to
 should offload to Cradle / other cores". So every module, light or heavy,
 is mixed by the first of these that is there, chosen when it opens:
 
-1. **A cores board core** (AmigaChrome's Dalsin $DA15 product 7, up to
+1. **A cores board core** (AmigaChrome's AmigaChrome Team $DA15 product 7, up to
    eight translated 68040 cores, `cpu.m68k/1`), through
    `openmulticore.library` (DalsinAI/openamigamulticore) on
    openservice.device. Each chunk (half a second for AHI, an eighth for

@@ -1,7 +1,7 @@
 /*
  * openamigaimage datatypes: work handed to a named service ("media.decode/1")
  * through openservice.device, on the services card or a paired Cradle.
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #ifndef DTSERVICE_H
 #define DTSERVICE_H

@@ -11,7 +11,7 @@
  * older ones get 8-bit mono. With neither a card nor a Cradle the sound
  * does not open yet (FLAC, Vorbis and Opus decoders on the 68k come next).
  *
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #include <string.h>
 #include <exec/memory.h>
@@ -31,7 +31,7 @@
 #include "dtservice.h"
 
 const char LibName[] = "opensound.datatype";
-const char LibIdString[] = "opensound.datatype 47.1 (5.10.2026) Dalsin Limited, decoded by media.decode/1";
+const char LibIdString[] = "opensound.datatype 47.1 (5.10.2026) AmigaChrome Team, decoded by media.decode/1";
 const UWORD LibVersion = 47;
 const UWORD LibRevision = 1;
 static const char version[] __attribute__((used)) = "$VER: opensound.datatype 47.1 (5.10.2026)";

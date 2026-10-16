@@ -4,7 +4,7 @@
 # the PC's reference results:
 #   tests/webpraw  (libwebp on the PC)   -> what tests/dtpic prints on the Amiga
 #   tests/webmprobe -chunky              -> what tests/dtanim prints on the Amiga
-# MIT, Copyright (c) 2026 Dalsin Limited.
+# MIT, Copyright (c) 2026 AmigaChrome Team.
 #
 # usage: tests/make-media.sh OUTDIR
 set -eu

@@ -2,7 +2,7 @@
  * webm.datatype check: open a file as an animation through datatypes.library,
  * load every frame with ADTM_LOADFRAME and print a checksum of its colour
  * indices, to compare with the PC (tests/webmprobe.c -chunky).
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #include <stdio.h>
 #include <stdlib.h>

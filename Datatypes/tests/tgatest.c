@@ -11,7 +11,7 @@
  * under AddressSanitizer, a read or write outside the file or the picture
  * stops it.
  *
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #include <stdio.h>
 #include <stdlib.h>

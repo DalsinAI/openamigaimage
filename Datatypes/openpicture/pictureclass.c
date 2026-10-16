@@ -12,7 +12,7 @@
  * AV1, HEIC needs HEVC and RAW needs demosaicing, too slow for a 68k at
  * these sizes.
  *
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #include <string.h>
 #include <exec/memory.h>
@@ -31,7 +31,7 @@
 #include "dtservice.h"
 
 const char LibName[] = "openpicture.datatype";
-const char LibIdString[] = "openpicture.datatype 47.1 (5.10.2026) Dalsin Limited, decoded by media.decode/1";
+const char LibIdString[] = "openpicture.datatype 47.1 (5.10.2026) AmigaChrome Team, decoded by media.decode/1";
 const UWORD LibVersion = 47;
 const UWORD LibRevision = 1;
 static const char version[] __attribute__((used)) = "$VER: openpicture.datatype 47.1 (5.10.2026)";

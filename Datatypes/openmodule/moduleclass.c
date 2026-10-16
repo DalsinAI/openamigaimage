@@ -24,7 +24,7 @@
  * openservice.device; else this CPU.
  * OIA_DecodedBy and OIA_Stats (include/datatypes/openimage.h) say which.
  *
- * MIT, Copyright (c) 2026 Dalsin Limited. libxmp keeps its MIT licence.
+ * MIT, Copyright (c) 2026 AmigaChrome Team. libxmp keeps its MIT licence.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,7 +60,7 @@
 #include "ahidev.h"
 
 const char LibName[] = "openmodule.datatype";
-const char LibIdString[] = "openmodule.datatype 47.3 (8.10.2026) Dalsin Limited, played by libxmp 4.7.3";
+const char LibIdString[] = "openmodule.datatype 47.3 (8.10.2026) AmigaChrome Team, played by libxmp 4.7.3";
 const UWORD LibVersion = 47;
 const UWORD LibRevision = 3;
 static const char version[] __attribute__((used)) = "$VER: openmodule.datatype 47.3 (8.10.2026)";

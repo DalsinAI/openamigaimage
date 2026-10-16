@@ -9,7 +9,7 @@
  * paired Cradle, as 8-bit mono handed out with each frame; without one the
  * video plays silent.
  *
- * MIT, Copyright (c) 2026 Dalsin Limited. libvpx is the WebM Project's,
+ * MIT, Copyright (c) 2026 AmigaChrome Team. libvpx is the WebM Project's,
  * under its BSD licence (upstream/libvpx/LICENSE).
  */
 #include <exec/memory.h>
@@ -39,7 +39,7 @@
 #include "vpx/vp8dx.h"
 
 const char LibName[] = "webm.datatype";
-const char LibIdString[] = "webm.datatype 47.1 (4.10.2026) Dalsin Limited, libvpx 1.17.0";
+const char LibIdString[] = "webm.datatype 47.1 (4.10.2026) AmigaChrome Team, libvpx 1.17.0";
 const UWORD LibVersion = 47;
 const UWORD LibRevision = 1;
 static const char version[] __attribute__((used)) = "$VER: webm.datatype 47.1 (4.10.2026)";

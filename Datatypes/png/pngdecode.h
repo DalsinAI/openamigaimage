@@ -14,7 +14,7 @@
  * touches only the memory it is handed, which the caller allocates from the
  * sizes png_head() works out.
  *
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #ifndef PNGDECODE_H
 #define PNGDECODE_H

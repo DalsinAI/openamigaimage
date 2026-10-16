@@ -19,7 +19,7 @@
  * kind that happens to be called .tga still opens as what it is when its own
  * datatype knows it, and one that is not a TGA fails as invalid data.
  *
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #include <exec/memory.h>
 #include <dos/dos.h>
@@ -37,7 +37,7 @@
 #include "tgadecode.h"
 
 const char LibName[] = "opentga.datatype";
-const char LibIdString[] = "opentga.datatype 47.1 (12.10.2026) Dalsin Limited";
+const char LibIdString[] = "opentga.datatype 47.1 (12.10.2026) AmigaChrome Team";
 const UWORD LibVersion = 47;
 const UWORD LibRevision = 1;
 static const char version[] __attribute__((used)) = "$VER: opentga.datatype 47.1 (12.10.2026)";

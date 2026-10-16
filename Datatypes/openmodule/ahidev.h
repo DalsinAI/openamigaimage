@@ -4,7 +4,7 @@
  * ahir_Link), written out from AHI's documented ABI so the build needs no
  * AHI SDK. The NDK 3.2 has no AHI headers.
  *
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #ifndef OM_AHIDEV_H
 #define OM_AHIDEV_H

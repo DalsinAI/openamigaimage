@@ -2,7 +2,7 @@
 # openamigaimage datatypes: webp, webm, openpicture, opensound, openmodule, opendoc and openvideo.datatype
 # for AmigaOS 3.x, built with the os32-gcc16 compiler (bebbo's amiga-gcc, GCC 16.2,
 # libnix). The datatypes run on any 68020 or better, with or without an FPU.
-# MIT, Copyright (c) 2026 Dalsin Limited. libwebp and libvpx keep their
+# MIT, Copyright (c) 2026 AmigaChrome Team. libwebp and libvpx keep their
 # BSD licences, libxmp its MIT licence.
 #
 #   OS32_GCC16   compiler root holding prefix/ (default ~/AmigaChrome/stoves/os32-gcc16)

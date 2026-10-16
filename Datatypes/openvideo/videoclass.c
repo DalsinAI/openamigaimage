@@ -11,7 +11,7 @@
  * Without a card or a Cradle the video does not open: these codecs are far
  * too slow for a 68k.
  *
- * MIT, Copyright (c) 2026 Dalsin Limited.
+ * MIT, Copyright (c) 2026 AmigaChrome Team.
  */
 #include <string.h>
 #include <exec/memory.h>
@@ -37,7 +37,7 @@
 #include "dtservice.h"
 
 const char LibName[] = "openvideo.datatype";
-const char LibIdString[] = "openvideo.datatype 47.1 (5.10.2026) Dalsin Limited, decoded by media.decode/1";
+const char LibIdString[] = "openvideo.datatype 47.1 (5.10.2026) AmigaChrome Team, decoded by media.decode/1";
 const UWORD LibVersion = 47;
 const UWORD LibRevision = 1;
 static const char version[] __attribute__((used)) = "$VER: openvideo.datatype 47.1 (5.10.2026)";
