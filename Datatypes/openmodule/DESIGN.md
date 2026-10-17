@@ -104,7 +104,7 @@ process** of its own (`openmodule player`, priority 2, 64 KB of stack):
 
 All of libxmp's work happens in the player process. That matters because
 libxmp uses some floating point (periods, per tick) and the datatype is
-built for any 68020 without an FPU: libnix's soft floating point calls the
+built for the 68040 with soft float (no FPU code): libnix's soft floating point calls the
 ROM math libraries, which set up the FPU of the task that opens them. The
 player process opens them for itself, so the calling program's FPU state
 is never touched (the other datatypes here avoid the math libraries

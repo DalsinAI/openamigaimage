@@ -10,7 +10,9 @@ GIMP pictures, FLAC, Ogg Vorbis, Opus, AAC, ALAC, WMA and MP3 sounds, MIDI
 and SID tunes, music modules (ProTracker MOD, MED and OctaMED, Oktalyzer,
 DigiBooster, FastTracker 2 XM, Scream Tracker 3 S3M, Impulse Tracker IT and
 more), office documents, PostScript, e-books, and MP4, MKV, AVI, WMV and
-MPEG video. They run on a 68020 or better, with or without an FPU. WebP,
+MPEG video. They are built for the 68040, soft float (no FPU code; linked
+with `../build/m68k-soft-m68040.specs` so libnix's soft maths is used),
+so they run on a 68LC040 or 68EC040 too. WebP,
 WebM and music modules need no other libraries and play on the Amiga
 itself, as do PNG and TGA; the others are decoded by a Cradle (below).
 
