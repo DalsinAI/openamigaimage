@@ -1,5 +1,5 @@
 #!/bin/sh
-# openamigaimage: zlib, libpng and libjpeg, built for AmigaOS 3.x (68020 + FPU) with the
+# openamigaimage: zlib, libpng and libjpeg, built for AmigaOS 3.x (68040 + FPU) with the
 # os32-gcc16 compiler (bebbo's amiga-gcc, GCC 16.2, libnix, libpthread).
 # MIT, Copyright (c) 2026 AmigaChrome Team. The library keeps its own licence.
 #
@@ -30,7 +30,7 @@ WORK="$HERE/work"
 CC="$P/bin/m68k-amigaos-gcc"
 CXX="$P/bin/m68k-amigaos-g++"
 AR="$P/bin/m68k-amigaos-ar"
-CPU=${OS32_CPU_FLAGS:-"-m68020 -m68881 -mcrt=nix20"}
+CPU=${OS32_CPU_FLAGS:-"-m68040 -m68881 -mcrt=nix20"}
 # Address 0 is memory on an Amiga (exec's pointer is at 4): without
 # -fno-delete-null-pointer-checks GCC drops null checks after a pointer is
 # used and puts a trap (TRAP #7, Software Failure 80000027) on any path it

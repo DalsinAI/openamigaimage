@@ -45,8 +45,8 @@ tarballs from [SOURCES](SOURCES) in `tarballs/`. Then:
 ```
 
 The libraries and headers land in `out/` (set `PREFIX` to change that). The
-script prints which other settings it needs, if any. Target: 68020 or better
-with an FPU (`-m68020 -m68881`), libnix (`-mcrt=nix20`). Every compile has
+script prints which other settings it needs, if any. Target: the 68040
+with an FPU (`-m68040 -m68881`), libnix (`-mcrt=nix20`). Every compile has
 `-fno-delete-null-pointer-checks`: address 0 is memory on an Amiga, and
 without it GCC puts a trap (Software Failure 80000027) on any path it proves
 goes through a null pointer.
@@ -77,7 +77,8 @@ It has not yet been run on real Amiga hardware.
 The run above predates AC090's native helpers. With them, the libraries are
 not yet built with os32-gcc16 nor run on the bench. `tests/achelpers/test_achelpers.sh`
 checks our side of it with an m68k Linux cross GCC and qemu-m68k, at -O0
-and -O2 for the 68020 and the 68040, 6 October 2026: the helpers built from
+and -O2 for the 68020 and the 68040, 6 October 2026 (the test now builds for
+the 68040 only): the helpers built from
 the pinned commit; zlib's four checksums and `copy_with_crc` over
 stand-ins for zlib's `crc32.c` and `adler32.c` (23690 checks against zlib's
 results, each call going where it should); the forced header with zlib's,

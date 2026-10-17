@@ -15,14 +15,14 @@ CC="$S/prefix/bin/m68k-amigaos-gcc"
 OUT=${PREFIX:-"$HERE/out"}
 WORK="$HERE/work/obj-openpng"
 # Address 0 is memory on an Amiga: keep GCC from dropping null checks (../build.sh).
-CFLAGS="-O2 -m68020 -fomit-frame-pointer -fno-delete-null-pointer-checks -DNDEBUG -Wall -Wno-pointer-sign"
+CFLAGS="-O2 -m68040 -fomit-frame-pointer -fno-delete-null-pointer-checks -DNDEBUG -Wall -Wno-pointer-sign"
 rm -rf "$WORK"
 mkdir -p "$WORK" "$OUT/Classes/DataTypes" "$OUT/Devs/DataTypes"
 for f in common/dtstart.c common/dtlib.c png/pngdecode.c png/pngclass.c; do
     (cd "$HERE" && $CC $CFLAGS -I"$HERE/common" -I"$HERE/png" -c "$f" -o "$WORK/$(basename "$f" .c).o")
 done
 # dtstart.o first, so the library's first code is a safe return.
-$CC -nostartfiles -m68020 -o "$OUT/Classes/DataTypes/openpng.datatype" \
+$CC -nostartfiles -m68040 -o "$OUT/Classes/DataTypes/openpng.datatype" \
     "$WORK/dtstart.o" "$WORK/dtlib.o" "$WORK/pngdecode.o" "$WORK/pngclass.o" -lamiga \
     -Wl,-Map="$WORK/openpng.datatype.map"
 echo "openpng.datatype: $(wc -c < "$OUT/Classes/DataTypes/openpng.datatype") bytes"
