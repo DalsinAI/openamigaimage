@@ -39,7 +39,10 @@ AR="$P/bin/m68k-amigaos-ar"
 # (libvpx's too) takes it, so the code behaves as on older compilers.
 NONULL=-fno-delete-null-pointer-checks
 # No -m68881: soft float, no FPU code in the datatypes.
-CFLAGS="-O2 -m68040 -fomit-frame-pointer $NONULL -DNDEBUG -DWORDS_BIGENDIAN -Wall -Wno-pointer-sign"
+# Soft float: -m68040 links libnix's soft libm020, not libm881 (see
+# ../build/m68k-soft-m68040.specs).
+SOFT="-specs=$HERE/../build/m68k-soft-m68040.specs"
+CFLAGS="-O2 -m68040 $SOFT -fomit-frame-pointer $NONULL -DNDEBUG -DWORDS_BIGENDIAN -Wall -Wno-pointer-sign"
 mkdir -p "$OUT/Classes/DataTypes" "$OUT/Devs/DataTypes" "$WORK"
 
 # AC090's native helpers for common/dtlib.c (realloc's copy, calloc's
@@ -96,7 +99,7 @@ XFLAGS="-I$W -I$W/src" compile "$W" "$WORK/obj-libwebp" \
     src/utils/random_utils.c src/utils/rescaler_utils.c src/utils/thread_utils.c src/utils/utils.c
 # dtstart.c is linked first, so the library's first code is a safe return.
 XFLAGS="-I$HERE/common -I$W/src $ACFLAGS" compile "$HERE" "$WORK/obj-webp" common/dtstart.c common/dtlib.c webp/webpclass.c
-$CC -nostartfiles -m68040 -o "$OUT/Classes/DataTypes/webp.datatype" \
+$CC -nostartfiles -m68040 $SOFT -o "$OUT/Classes/DataTypes/webp.datatype" \
     "$WORK"/obj-webp/common_dtstart.o "$WORK"/obj-webp/common_dtlib.o "$WORK"/obj-webp/webp_webpclass.o "$WORK"/obj-libwebp/*.o $ACLIB -lamiga \
     -Wl,-Map="$WORK/webp.datatype.map"
 echo "webp.datatype: $(wc -c < "$OUT/Classes/DataTypes/webp.datatype") bytes"
@@ -114,7 +117,7 @@ V="$WORK/libvpx/libvpx-1.17.0"
     && patch -p1 -s < "$HERE/patches/libvpx-1.17.0-tx-size-null.patch")
 # The VP8 and VP9 decoders in plain C: no encoders, threads or tools.
 mkdir -p "$WORK/libvpx-build"
-(cd "$WORK/libvpx-build" && CROSS="$P/bin/m68k-amigaos-" CFLAGS="-O2 -m68040 -fomit-frame-pointer $NONULL" \
+(cd "$WORK/libvpx-build" && CROSS="$P/bin/m68k-amigaos-" CFLAGS="-O2 -m68040 $SOFT -fomit-frame-pointer $NONULL" \
     "$V/configure" --target=generic-gnu --disable-vp8-encoder --disable-vp9-encoder --enable-vp8-decoder \
     --enable-vp9-decoder --disable-examples --disable-tools --disable-docs --disable-unit-tests \
     --disable-multithread --disable-runtime-cpu-detect --disable-install-docs --disable-install-bins \
@@ -123,7 +126,7 @@ mkdir -p "$WORK/libvpx-build"
     && make -j"${JOBS:-2}" libvpx.a > build.log 2>&1) || { echo "libvpx build failed (see $WORK/libvpx-build)"; exit 1; }
 XFLAGS="-I$HERE/common -I$HERE/include -I$HERE/webm -I$V -I$WORK/libvpx-build $ACFLAGS" compile "$HERE" "$WORK/obj-webm" \
     common/dtstart.c common/dtlib.c common/dtstack.c common/dtservice.c webm/webm_demux.c webm/webmclass.c
-$CC -nostartfiles -m68040 -o "$OUT/Classes/DataTypes/webm.datatype" \
+$CC -nostartfiles -m68040 $SOFT -o "$OUT/Classes/DataTypes/webm.datatype" \
     "$WORK"/obj-webm/common_dtstart.o "$WORK"/obj-webm/common_dtlib.o "$WORK"/obj-webm/common_dtstack.o \
     "$WORK"/obj-webm/common_dtservice.o \
     "$WORK"/obj-webm/webm_webm_demux.o "$WORK"/obj-webm/webm_webmclass.o "$WORK/libvpx-build/libvpx.a" $ACLIB -lamiga \
@@ -141,7 +144,7 @@ echo "Devs/DataTypes/WebM: $(wc -c < "$OUT/Devs/DataTypes/WebM") bytes"
 # card or a paired Cradle; no codec on the 68k.
 XFLAGS="-I$HERE/common -I$HERE/include $ACFLAGS" compile "$HERE" "$WORK/obj-openpicture" \
     common/dtstart.c common/dtlib.c common/dtservice.c openpicture/pictureclass.c
-$CC -nostartfiles -m68040 -o "$OUT/Classes/DataTypes/openpicture.datatype" \
+$CC -nostartfiles -m68040 $SOFT -o "$OUT/Classes/DataTypes/openpicture.datatype" \
     "$WORK"/obj-openpicture/common_dtstart.o "$WORK"/obj-openpicture/common_dtlib.o \
     "$WORK"/obj-openpicture/common_dtservice.o "$WORK"/obj-openpicture/openpicture_pictureclass.o $ACLIB -lamiga \
     -Wl,-Map="$WORK/openpicture.datatype.map"
@@ -220,7 +223,7 @@ OS32_GCC16="$S" PREFIX="$OUT" sh "$HERE/tga/build.sh"
 # media.decode/1 service on the services card or a paired Cradle.
 XFLAGS="-I$HERE/common -I$HERE/include $ACFLAGS" compile "$HERE" "$WORK/obj-opensound" \
     common/dtstart.c common/dtlib.c common/dtservice.c opensound/soundclass.c
-$CC -nostartfiles -m68040 -o "$OUT/Classes/DataTypes/opensound.datatype" \
+$CC -nostartfiles -m68040 $SOFT -o "$OUT/Classes/DataTypes/opensound.datatype" \
     "$WORK"/obj-opensound/common_dtstart.o "$WORK"/obj-opensound/common_dtlib.o \
     "$WORK"/obj-opensound/common_dtservice.o "$WORK"/obj-opensound/opensound_soundclass.o $ACLIB -lamiga \
     -Wl,-Map="$WORK/opensound.datatype.map"
@@ -281,7 +284,7 @@ XFLAGS="-I$HERE/common -I$HERE/include -I$X/include -DLIBXMP_STATIC -DDT_OWN_MAL
     common/dtstart.c common/dtlib.c common/dtservice.c openmodule/moduleclass.c openmodule/xmpglue.c openmodule/novorbis.c
 # libm: libnix's soft floating point, which calls the ROM math libraries
 # (opened in the player process; see moduleclass.c).
-$CC -nostartfiles -m68040 -o "$OUT/Classes/DataTypes/openmodule.datatype" \
+$CC -nostartfiles -m68040 $SOFT -o "$OUT/Classes/DataTypes/openmodule.datatype" \
     "$WORK"/obj-openmodule/common_dtstart.o "$WORK"/obj-openmodule/common_dtlib.o \
     "$WORK"/obj-openmodule/common_dtservice.o "$WORK"/obj-openmodule/openmodule_moduleclass.o \
     "$WORK"/obj-openmodule/openmodule_xmpglue.o \
@@ -291,7 +294,7 @@ $CC -nostartfiles -m68040 -o "$OUT/Classes/DataTypes/openmodule.datatype" \
 echo "openmodule.datatype: $(wc -c < "$OUT/Classes/DataTypes/openmodule.datatype") bytes"
 # modbench (tests/modbench.c): libxmp's mixing time on this Amiga, a plain
 # Shell program, left in work/.
-$CC -O2 -m68040 -fomit-frame-pointer $NONULL -I"$X/include" -DLIBXMP_STATIC -o "$WORK/modbench" \
+$CC -O2 -m68040 $SOFT -fomit-frame-pointer $NONULL -I"$X/include" -DLIBXMP_STATIC -o "$WORK/modbench" \
     "$HERE/tests/modbench.c" "$WORK"/obj-openmodule/openmodule_novorbis.o "$WORK/libxmp.a" -lm
 moddesc() {      # FILE NAME ID PATTERN MASK...
     f=$1; n=$2; i=$3; pat=$4; shift 4
@@ -354,7 +357,7 @@ moddesc Module-IT "Impulse Tracker 2 module" it "#?" $(chars "IMPM") ANY
 # the doc.render/1 service on the services card or a paired Cradle.
 XFLAGS="-I$HERE/common -I$HERE/include $ACFLAGS" compile "$HERE" "$WORK/obj-opendoc" \
     common/dtstart.c common/dtlib.c common/dtservice.c opendoc/docclass.c
-$CC -nostartfiles -m68040 -o "$OUT/Classes/DataTypes/opendoc.datatype" \
+$CC -nostartfiles -m68040 $SOFT -o "$OUT/Classes/DataTypes/opendoc.datatype" \
     "$WORK"/obj-opendoc/common_dtstart.o "$WORK"/obj-opendoc/common_dtlib.o \
     "$WORK"/obj-opendoc/common_dtservice.o "$WORK"/obj-opendoc/opendoc_docclass.o $ACLIB -lamiga \
     -Wl,-Map="$WORK/opendoc.datatype.map"
@@ -395,7 +398,7 @@ DT_TEXT=1 DT_PRIORITY=1 docdesc Markdown Markdown mdwn "#?.(md|markdown)"
 # media.decode/1 service on the services card or a paired Cradle.
 XFLAGS="-I$HERE/common -I$HERE/include $ACFLAGS" compile "$HERE" "$WORK/obj-openvideo" \
     common/dtstart.c common/dtlib.c common/dtservice.c openvideo/videoclass.c
-$CC -nostartfiles -m68040 -o "$OUT/Classes/DataTypes/openvideo.datatype" \
+$CC -nostartfiles -m68040 $SOFT -o "$OUT/Classes/DataTypes/openvideo.datatype" \
     "$WORK"/obj-openvideo/common_dtstart.o "$WORK"/obj-openvideo/common_dtlib.o \
     "$WORK"/obj-openvideo/common_dtservice.o "$WORK"/obj-openvideo/openvideo_videoclass.o $ACLIB -lamiga \
     -Wl,-Map="$WORK/openvideo.datatype.map"

@@ -46,7 +46,10 @@ tarballs from [SOURCES](SOURCES) in `tarballs/`. Then:
 
 The libraries and headers land in `out/` (set `PREFIX` to change that). The
 script prints which other settings it needs, if any. Target: the 68040
-with an FPU (`-m68040 -m68881`), libnix (`-mcrt=nix20`). Every compile has
+with an FPU (`-m68040 -m68881`), libnix (`-mcrt=nix20`). These libraries
+stay hard float for now (they serve the browser stack, which needs a 68040
+with an FPU); the datatypes in `Datatypes/` are soft float and link through
+`build/m68k-soft-m68040.specs`. Every compile has
 `-fno-delete-null-pointer-checks`: address 0 is memory on an Amiga, and
 without it GCC puts a trap (Software Failure 80000027) on any path it proves
 goes through a null pointer.
