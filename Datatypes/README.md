@@ -2,15 +2,15 @@
 
 `webp.datatype`, `webm.datatype`, `openpicture.datatype`, `openpng.datatype`,
 `opentga.datatype`, `opensound.datatype`, `openmodule.datatype`,
-`opendoc.datatype` and `openvideo.datatype` for AmigaOS 3.x, by the AmigaChrome
+`opendoc.datatype`, `openvideo.datatype` and `cdxl.datatype` for AmigaOS 3.x, by the AmigaChrome
 Team. They let any datatypes program (MultiView, OpenBrowser, OpenPlay, a
 picture viewer) open WebP pictures, WebM video, Targa (TGA) pictures, AVIF,
 HEIC, JPEG XL, camera RAW, Photoshop and
 GIMP pictures, FLAC, Ogg Vorbis, Opus, AAC, ALAC, WMA and MP3 sounds, MIDI
 and SID tunes, music modules (ProTracker MOD, MED and OctaMED, Oktalyzer,
 DigiBooster, FastTracker 2 XM, Scream Tracker 3 S3M, Impulse Tracker IT and
-more), office documents, PostScript, e-books, and MP4, MKV, AVI, WMV and
-MPEG video. They are built for the 68040, soft float (no FPU code; linked
+more), office documents, PostScript, e-books, MP4, MKV, AVI, WMV and
+MPEG video, streams from the network (HLS, transport streams) and CDXL films. They are built for the 68040, soft float (no FPU code; linked
 with `../build/m68k-soft-m68040.specs` so libnix's soft maths is used),
 so they run on a 68LC040 or 68EC040 too. WebP,
 WebM and music modules need no other libraries and play on the Amiga
@@ -31,7 +31,8 @@ is not yet checked (see Tested).
 | `opensound.datatype` | sound | the `media.decode/1` service | FLAC, Ogg (Vorbis, Opus), AAC/M4A, ALAC, WMA and MP3; MIDI (played through FluidSynth on the Cradle), C64 SID tunes (the first three minutes, through sidplayfp) and XM, IT and S3M modules (libopenmpt), sent back as 16-bit PCM at a rate Paula plays (`ENV:OpenImage/SoundRate`, default 28000 Hz: 44.1 kHz comes as 22.05 kHz). 16-bit stereo with sound.datatype V44 or newer, else 8-bit mono. |
 | `openmodule.datatype` | sound | libxmp 4.7.3 | Music modules, played on the Amiga itself: ProTracker, NoiseTracker and SoundTracker MODs (M.K., M!K!, FLT4, FLT8, 2CHN to 32CH, and 15-instrument SoundTracker by its name), MED and OctaMED (MMD0 to MMD3, MED 2 to 4), Oktalyzer, DigiBooster and DigiBooster Pro, FastTracker 2 XM, Scream Tracker 3 S3M and Impulse Tracker IT (libxmp reads some 60 module formats in all; a descriptor for another is all it takes). Streamed by a player process of its own, so a song starts at once and never sits in memory whole: 16-bit stereo through AHI (`ahi.device` unit 0, at its own rate), else 8-bit stereo on two Paula channels. Mixed on a cores board core (AmigaChrome's, through `openmulticore.library`), else by `media.decode/1` on a services card or a paired Cradle, else on this CPU, and the datatype says which (`OIA_DecodedBy`, `include/datatypes/openimage.h`; `openmodule/DESIGN.md` sections 2 and 7). The module's title and length show; play, pause, stop, volume and repeat work as for a sound. |
 | `opendoc.datatype` | picture | the `doc.render/1` service | DOCX, XLSX, PPTX, OpenDocument, Word/Excel/PowerPoint 97, RTF, WordPerfect, PostScript and EPS, EPUB e-books, Markdown and CSV, laid out by LibreOffice or Apache OpenOffice (Ghostscript for PostScript) on the Cradle and shown as their pages one under the other, `ENV:OpenImage/DocWidth` pixels wide (default 800), the first `ENV:OpenImage/DocPages` pages (default 8). |
-| `openvideo.datatype` | animation | the `media.decode/1` service | MP4/MOV, MKV, AVI, WMV, MPEG and FLV video, and animated PNG (H.264, HEVC, AV1, VP9, MPEG-4, MPEG-1/2, WMV), kept open on the Cradle and sent a frame at a time in webm.datatype's 256 colours, scaled to fit `ENV:OpenImage/VideoWidth` x `VideoHeight` (default 640 x 480), with its sound as 8-bit mono. |
+| `openvideo.datatype` | animation | the `media.decode/1` service | MP4/MOV, MKV, AVI, WMV, MPEG and FLV video, and animated PNG (H.264, HEVC, AV1, VP9, MPEG-4, MPEG-1/2, WMV), kept open on the Cradle and sent a frame at a time, scaled to fit `ENV:OpenImage/VideoWidth` x `VideoHeight`, with its sound as 8-bit mono a frame at a time. On an AGA machine with a chipset screen the frames come in HAM8 (default 320 x 256), elsewhere in webm.datatype's 256 colours (default 640 x 480); `ENV:OpenImage/VideoMode` set to `HAM8` or `256` chooses (default `AUTO`). HAM8 uses the fixed 4x4x4 cube as base colours, or each frame's own with `ENV:OpenImage/VideoCMap` set. Streams: a NETSTREAM file (`#NETSTREAM`, then `NAME=` and `URL=` lines: what the NETSTREAM: handler gives for a channel) is played from its URL by the Cradle, which fetches and decodes it, so the Amiga never carries the stream; a stream that never ends plays as four hours of frames. A file bigger than `ENV:OpenImage/VideoChunk` KB (default 2048) goes to the Cradle in 256 KB parts, so it is never all in memory here. |
+| `cdxl.datatype` | animation | our own reader (`cdxl/cdxl_core.c`) | CDXL films (the CDTV's and CD32's streaming video, and what media.cdxl/1 and ToCDXL make), played on the Amiga itself a frame at a time from the file, with no card or Cradle: 1 to 8 bitplanes (one after another, or each row's in turn), HAM6 and HAM8, each frame's own palette (handed out with the frame when it differs from the first's), and chunky RGB films shown in 256 colours (the 6x6x6 cube). The sound, mono or stereo, is played as 8-bit mono with each frame, at the rate in the header (else 11025 Hz); frames a second from the header, else from the sound's length. It replaces the system's `cdxl.datatype` and `CDXL` descriptor of the same names. |
 | `webm.datatype` | animation | libvpx 1.17.0 | WebM video, VP8 or VP9, decoded frame by frame as the animation plays. Frames are shown in 256 colours (a 6x6x6 colour cube with ordered dithering), so they play on any screen. Sound through `media.decode/1` when a card or Cradle offers it. |
 
 OpenBrowser decodes the pictures in web pages through datatypes, so with
@@ -77,7 +78,9 @@ Copy the files from `out/` (after building) to the same places on the Amiga:
 | `Classes/DataTypes/opendoc.datatype` | `SYS:Classes/DataTypes/` |
 | `Devs/DataTypes/DOCX`, `XLSX`, `PPTX`, `ODF`, `DOC`, `XLS`, `PPT`, `RTF`, `WPD`, `PS`, `EPS`, `EPUB`, `CSV`, `Markdown` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/openvideo.datatype` | `SYS:Classes/DataTypes/` |
-| `Devs/DataTypes/MP4`, `MOV`, `MKV`, `AVI`, `WMV`, `MPEG-PS`, `MPEG-TS`, `FLV`, `APNG`, `APNG-Name` | `DEVS:DataTypes/` |
+| `Devs/DataTypes/MP4`, `MOV`, `MKV`, `AVI`, `WMV`, `MPEG-PS`, `MPEG-TS`, `FLV`, `APNG`, `APNG-Name`, `NetStream` | `DEVS:DataTypes/` |
+| `Classes/DataTypes/cdxl.datatype` | `SYS:Classes/DataTypes/` |
+| `Devs/DataTypes/CDXL` | `DEVS:DataTypes/` |
 
 `openpicture.datatype`, `opensound.datatype`, `opendoc.datatype` and
 `openvideo.datatype` also need `openservice.device` in `DEVS:` (OpenUp's
@@ -331,8 +334,18 @@ test file is make-tga.py's), 8-bit screens, and the speed on a real 68k.
   their names (`.docx`, `.xls`...), as they share a ZIP or OLE2 header with
   other files. CSV and Markdown are chosen by their names. No text view
   without a Cradle yet.
-- `openvideo.datatype`: not yet run on the bench. The whole file is read
-  into memory and sent once, so a video needs that much free RAM. Each
+- `cdxl.datatype`: not yet run on the bench. The core is checked on the
+  host and as 68040 code under qemu-m68k (`tests/test-cdxl.sh`): seven test
+  films in every layout it plays show byte for byte what they were made
+  with, and what FFmpeg's own CDXL decoder shows; nearly 1,900 films cut
+  short or with a header byte changed read nothing outside the file. Frames
+  are read from a handle of its own (DupLockFromFH, OpenFromLock), so a
+  handler without those (a CD's, say) is not yet played. Type 0 (24-bit
+  palette) frames are not played.
+- `openvideo.datatype`: not yet run on the bench. HAM8, streams, sound with
+  each frame (VSOUND) and files in parts (VUPLOAD) need a Cradle or card
+  whose media.decode/1 has them (openamigaservice, 20 October 2026). A file
+  up to `VideoChunk` KB is read into memory and sent once. Each
   frame opens the service afresh, because animation.datatype loads frames
   from its own process. MKV is chosen by its name and tried before
   webm.datatype (both are EBML). Each frame is a planar bitmap in chip RAM:
@@ -346,7 +359,7 @@ test file is make-tga.py's), 8-bit screens, and the speed on a real 68k.
 
 ## Licence
 
-The datatype code (`build.sh`, `common/`, `include/`, `webp/`, `webm/`, `openpicture/`, `png/`, `tga/`, `opensound/`, `openmodule/`, `opendoc/`, `openvideo/`, `tests/`) is
+The datatype code (`build.sh`, `common/`, `include/`, `webp/`, `webm/`, `openpicture/`, `png/`, `tga/`, `opensound/`, `openmodule/`, `opendoc/`, `openvideo/`, `cdxl/`, `tests/`) is
 MIT, Copyright (c) 2026 AmigaChrome Team, as the rest of this repository.
 libwebp and libvpx keep their BSD licences and the WebM Project's patent
 grants (`../upstream/libwebp/`, `../upstream/libvpx/`); a patch to their
