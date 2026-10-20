@@ -1,5 +1,5 @@
 #!/bin/sh
-# openamigaimage datatypes: webp, webm, openpicture, opensound, openmodule, opendoc and openvideo.datatype
+# openamigaimage datatypes: webp, webm, openpicture, opensound, openmodule, opendoc, cdxl and openvideo.datatype
 # for AmigaOS 3.x, built with the os32-gcc16 compiler (bebbo's amiga-gcc, GCC 16.2,
 # libnix). The datatypes are built for the 68040, soft float (no FPU code).
 # MIT, Copyright (c) 2026 AmigaChrome Team. libwebp and libvpx keep their
@@ -393,6 +393,20 @@ docdesc EPUB "EPUB e-book" epub "#?" "'P'" "'K'" 3 4 $(i=0; while [ $i -lt 26 ];
 DT_TEXT=1 DT_PRIORITY=1 docdesc CSV "CSV table" csv "#?.(csv|tsv)"
 DT_TEXT=1 DT_PRIORITY=1 docdesc Markdown Markdown mdwn "#?.(md|markdown)"
 
+# --- cdxl.datatype ------------------------------------------------------------
+# CDXL films, played on the Amiga itself a frame at a time from the file.
+XFLAGS="-I$HERE/common -I$HERE/include -I$HERE/cdxl $ACFLAGS" compile "$HERE" "$WORK/obj-cdxl" \
+    common/dtstart.c common/dtlib.c cdxl/cdxl_core.c cdxl/cdxlclass.c
+$CC -nostartfiles -m68040 $SOFT -o "$OUT/Classes/DataTypes/cdxl.datatype" \
+    "$WORK"/obj-cdxl/common_dtstart.o "$WORK"/obj-cdxl/common_dtlib.o \
+    "$WORK"/obj-cdxl/cdxl_cdxl_core.o "$WORK"/obj-cdxl/cdxl_cdxlclass.o $ACLIB -lamiga \
+    -Wl,-Map="$WORK/cdxl.datatype.map"
+echo "cdxl.datatype: $(wc -c < "$OUT/Classes/DataTypes/cdxl.datatype") bytes"
+# CDXL has no signature: a standard frame's type byte (1), by name.
+python3 "$HERE/common/mkdtdesc.py" "$OUT/Devs/DataTypes/CDXL" CDXL cdxl anim cdxl "#?.(cdxl|xl)" \
+    '$VER: CDXL 47.1 (20.10.2026)' 0x01
+echo "Devs/DataTypes/CDXL: $(wc -c < "$OUT/Devs/DataTypes/CDXL") bytes"
+
 # --- openvideo.datatype -------------------------------------------------------
 # MP4, MOV, MKV, AVI, WMV, MPEG and FLV, decoded frame by frame by the
 # media.decode/1 service on the services card or a paired Cradle.
@@ -426,3 +440,8 @@ videodesc WMV "Windows Media video" wmv "#?.(wmv|asf)" 0x30 0x26 0xb2 0x75 0x8e 
 videodesc MPEG-PS "MPEG video" mpg "#?" 0x00 0x00 0x01 0xba
 videodesc MPEG-TS "MPEG transport stream" mts "#?.(ts|m2ts|mts)" 0x47
 videodesc FLV "Flash video" flv "#?" "'F'" "'L'" "'V'"
+# A stream: what the NETSTREAM: handler gives for a channel (or one saved
+# to disk), "#NETSTREAM" then NAME= and URL= lines; the host plays the URL.
+# Text, so it needs DT_TEXT or the ascii datatype takes it.
+# shellcheck disable=SC2046
+DT_TEXT=1 videodesc NetStream "Network stream" nets "#?" $(chars "#NETSTREAM")
