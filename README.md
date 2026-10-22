@@ -38,7 +38,10 @@ for the library goes to its authors; see `upstream/` for their notices.
 
 You need the os32-gcc16 compiler (bebbo's amiga-gcc on GCC 16.2 with libnix
 and libpthread; see DalsinAI/openamigabrowser `stove/`) and the upstream
-tarballs from [SOURCES](SOURCES) in `tarballs/`. Then:
+tarballs from [SOURCES](SOURCES) in `tarballs/`. A tarball that isn't there is fetched
+from the URL SOURCES gives and kept only if its SHA-256 matches
+(`tools/fetch-tarball.sh`), so a fresh clone builds on a machine with internet;
+zlib has no URL and is still put there by hand. Then:
 
 ```
 ./build.sh
