@@ -63,7 +63,7 @@ fi
 
 unpack() {
     t="$TARBALLS/$2"
-    [ -f "$t" ] || { echo "missing $t (see SOURCES)"; exit 2; }
+    [ -f "$t" ] || sh "$HERE/../tools/fetch-tarball.sh" "$2" "$TARBALLS" || exit 2   # fetched from SOURCES's URL, SHA-256 checked
     echo "$3  $t" | sha256sum -c - >/dev/null || { echo "SHA-256 mismatch: $t"; exit 2; }
     rm -rf "$WORK/$1"; mkdir -p "$WORK/$1"
     tar xf "$t" -C "$WORK/$1"
