@@ -269,7 +269,8 @@ static ULONG write_raw(struct sdata *sd, BPTR fh)
             SetIoErr(ERROR_NO_FREE_STORE);
             return FALSE;
         }
-        sdt_end(&sd->core);        /* everything there is, from here */
+        if (!sd->core.pull)
+            sdt_end(&sd->core);    /* fed only: everything there is, from here */
         for (;;) {
             ULONG f, n = sdt_take(&sd->core, buf, WRITE_CHUNK, &f);
             if (n && Write(fh, buf, n) != (LONG)n)
