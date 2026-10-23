@@ -8,10 +8,13 @@
 # buffers to the helpers (zlib_test.c); the forced header takes zlib's,
 # libjpeg's and libpng's ways of calling memcpy, memmove and memset
 # (string_test.c); and Datatypes/common/dtlib.c's calloc and realloc work
-# with the helpers and without (dtmem_test.c).
+# with the helpers and without (dtmem_test.c), from DalsinAI/opendatatypes.
 # MIT, Copyright (c) 2026 AmigaChrome Team.
 #
 #   AMIGACHROME_GUEST  as for build.sh
+#   OPENDATATYPES  a DalsinAI/opendatatypes checkout, for dtlib.c (default
+#                opendatatypes beside this repository; without one that
+#                part is skipped)
 #   M68K_CC, M68K_PREFIX, QEMU_M68K  the cross tools (default m68k-linux-gnu-gcc,
 #                m68k-linux-gnu-, qemu-m68k)
 #   ZLIB_INCLUDE folder with zlib.h and zconf.h (default /usr/include)
@@ -20,6 +23,7 @@
 set -eu
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 root=$here/../..
+odt=${OPENDATATYPES:-$root/../opendatatypes}
 cc=${M68K_CC:-m68k-linux-gnu-gcc}
 prefix=${M68K_PREFIX:-m68k-linux-gnu-}
 qemu=${QEMU_M68K:-qemu-m68k}
@@ -55,13 +59,14 @@ for flags in "-O0 -m68040" "-O2 -m68040"; do
     say "$("$qemu" -cpu "$cpu" "$t/string_test" || true) (memcpy, memmove and memset, $flags)"
 
     # dtlib.c's memory functions on their own, with the helpers and without
+    [ -f "$odt/Datatypes/common/dtlib.c" ] || { echo "skipped: dtlib.c (no opendatatypes checkout at $odt; set OPENDATATYPES)"; continue; }
     for on in 1 0; do
         {
             echo '#include "dtmem_stub.h"'
             echo '#include <string.h>'
-            sed -n '1,/^struct ExecBase/p' "$root/Datatypes/common/dtlib.c" | sed -n '/^#ifdef OAI_AC_HELPERS/,/^#endif/p'
+            sed -n '1,/^struct ExecBase/p' "$odt/Datatypes/common/dtlib.c" | sed -n '/^#ifdef OAI_AC_HELPERS/,/^#endif/p'
             printf '#define malloc dt_malloc\n#define calloc dt_calloc\n#define free dt_free\n#define realloc dt_realloc\n'
-            sed -n '/^\/\* --- task-safe memory/,/^\/\* A small vsnprintf/p' "$root/Datatypes/common/dtlib.c" | sed '$d'
+            sed -n '/^\/\* --- task-safe memory/,/^\/\* A small vsnprintf/p' "$odt/Datatypes/common/dtlib.c" | sed '$d'
         } > "$t/dtmem.c"
         d=; [ $on = 1 ] && d="-DOAI_AC_HELPERS -I$t/ach/src $wrap"
         # shellcheck disable=SC2086

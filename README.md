@@ -1,8 +1,8 @@
 # openamigaimage
 
 zlib, libpng and libjpeg for AmigaOS 3.x on 68k, built as static link libraries for
-GCC programs, and the project's datatypes: `webp.datatype`, `webm.datatype`, `openpicture.datatype`, `opensound.datatype`, `openmodule.datatype` (music modules: MOD, MED, Oktalyzer, DigiBooster, XM, S3M, IT, played on the Amiga itself), `opendoc.datatype` and `openvideo.datatype`
-(see [Datatypes](Datatypes/README.md)). Part of the [OpenAmiga](https://github.com/DalsinAI/openamiga)
+GCC programs. The project's datatypes moved to
+[DalsinAI/opendatatypes](https://github.com/DalsinAI/opendatatypes) (see [Datatypes](#datatypes)). Part of the [OpenAmiga](https://github.com/DalsinAI/openamiga)
 ports, made for [OpenBrowser](https://github.com/DalsinAI/openamigabrowser),
 the WebKit browser for AmigaOS 3.2.
 
@@ -102,28 +102,13 @@ ok   zlibsums.sh leaves deflate's gzip crc to zlib when crc32.c has no plain cop
 
 ## Datatypes
 
-The `Datatypes` drawer holds the datatypes the project makes, so any datatypes
-program can open more formats. They are built by `Datatypes/build.sh`, apart
-from the libraries above:
-
-- `webp.datatype` (libwebp): WebP pictures, lossy, lossless and with alpha.
-- `webm.datatype` (libvpx): WebM video, VP8 and VP9, in 256 colours.
-- `openpicture.datatype`: AVIF, HEIC, JPEG XL, camera RAW, PSD, XCF, EXR,
-  HDR, QOI, DDS and JPEG 2000 pictures, decoded by a Cradle through the
-  `media.decode/1` service (DalsinAI/openamigaservice).
-- `opensound.datatype`: FLAC, Ogg Vorbis, Opus, AAC, ALAC, WMA and MP3
-  sounds, MIDI, SID tunes and XM, IT and S3M modules, decoded the same way.
-- `opendoc.datatype`: office documents (DOCX, XLSX, PPTX, OpenDocument,
-  Office 97, RTF, WordPerfect), PostScript, EPUB, Markdown and CSV as their
-  pages, laid out by LibreOffice on a
-  Cradle through `doc.render/1`.
-- `openvideo.datatype`: MP4, MKV, AVI, WMV and MPEG video, sent a frame at a
-  time by a Cradle through `media.decode/1`.
-- `opentga.datatype`: Targa (TGA) pictures of every kind, uncompressed and
-  RLE, with alpha, decoded on the Amiga itself by the Team's own decoder.
-
-Both decode on the bench exactly as their libraries do on x86 cores. Installing,
-building and the test results are in [Datatypes/README.md](Datatypes/README.md).
+The datatypes (`webp`, `webm`, `openpicture`, `openpng`, `opentga`,
+`opensound`, `openmodule`, `opendoc`, `cdxl` and `openvideo.datatype`) moved,
+with their history, to
+[DalsinAI/opendatatypes](https://github.com/DalsinAI/opendatatypes) on
+23 October 2026, at the same path (`Datatypes/`). `tests/achelpers` still
+checks their `dtlib.c` here when an opendatatypes checkout sits beside this
+repository (or `OPENDATATYPES` names one).
 
 ## Known issues
 
