@@ -26,11 +26,10 @@ fetched at build time (below).
 | Component | Where | Authors | Licence |
 | --- | --- | --- | --- |
 | zlib, libpng, libjpeg, libwebp and libvpx licence and author notices | `upstream/` | The authors named below | Their own (below) |
-| Our patches to libvpx and libwebp, which carry a few lines of their code as context | `Datatypes/patches/` | The WebM Project authors; Google Inc. and the libwebp contributors | BSD 3-clause, with the WebM patent grant |
 
 ## From our other repositories
 
-- `Datatypes/include/devices/openservice.h` is a copy of DalsinAI/openamigaservice's header.
+- The datatypes, with our libvpx and libwebp patches and the copy of DalsinAI/openamigaservice's header, are in DalsinAI/opendatatypes since 23 October 2026.
 - With `AC_HELPERS=1` the build reads AC090's native helpers (`common/amiga/ac_helpers*`, `ac_magic.h`) from DalsinAI/amigachrome-guest at the commit in `AMIGACHROME_GUEST_PINNED_COMMIT`.
 
 ## Fetched at build time, not committed
