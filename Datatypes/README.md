@@ -2,8 +2,9 @@
 
 `webp.datatype`, `webm.datatype`, `openpicture.datatype`, `openpng.datatype`,
 `opentga.datatype`, `opensound.datatype`, `openmodule.datatype`,
-`opendoc.datatype`, `openvideo.datatype` and `cdxl.datatype` for AmigaOS 3.x, by the AmigaChrome
-Team. They let any datatypes program (MultiView, OpenBrowser, OpenPlay, a
+`opendoc.datatype`, `openvideo.datatype`, `cdxl.datatype`, and the data
+class `stream.datatype` with `gzip.datatype` and `brotli.datatype`, for
+AmigaOS 3.x, by the AmigaChrome Team. They let any datatypes program (MultiView, OpenBrowser, OpenPlay, a
 picture viewer) open WebP pictures, WebM video, Targa (TGA) pictures, AVIF,
 HEIC, JPEG XL, camera RAW, Photoshop and
 GIMP pictures, FLAC, Ogg Vorbis, Opus, AAC, ALAC, WMA and MP3 sounds, MIDI
@@ -33,6 +34,9 @@ is not yet checked (see Tested).
 | `opendoc.datatype` | picture | the `doc.render/1` service | DOCX, XLSX, PPTX, OpenDocument, Word/Excel/PowerPoint 97, RTF, WordPerfect, PostScript and EPS, EPUB e-books, Markdown and CSV, laid out by LibreOffice or Apache OpenOffice (Ghostscript for PostScript) on the Cradle and shown as their pages one under the other, `ENV:OpenImage/DocWidth` pixels wide (default 800), the first `ENV:OpenImage/DocPages` pages (default 8). |
 | `openvideo.datatype` | animation | the `media.decode/1` service | MP4/MOV, MKV, AVI, WMV, MPEG and FLV video, and animated PNG (H.264, HEVC, AV1, VP9, MPEG-4, MPEG-1/2, WMV), kept open on the Cradle and sent a frame at a time, scaled to fit `ENV:OpenImage/VideoWidth` x `VideoHeight`, with its sound as 8-bit mono a frame at a time. On an AGA machine with a chipset screen the frames come in HAM8 (default 320 x 256), elsewhere in webm.datatype's 256 colours (default 640 x 480); `ENV:OpenImage/VideoMode` set to `HAM8` or `256` chooses (default `AUTO`). HAM8 uses the fixed 4x4x4 cube as base colours, or each frame's own with `ENV:OpenImage/VideoCMap` set. Streams: a NETSTREAM file (`#NETSTREAM`, then `NAME=` and `URL=` lines: what the NETSTREAM: handler gives for a channel) is played from its URL by the Cradle, which fetches and decodes it, so the Amiga never carries the stream; a stream that never ends plays as four hours of frames. A file bigger than `ENV:OpenImage/VideoChunk` KB (default 2048) goes to the Cradle in 256 KB parts, so it is never all in memory here. |
 | `cdxl.datatype` | animation | our own reader (`cdxl/cdxl_core.c`) | CDXL films (the CDTV's and CD32's streaming video, and what media.cdxl/1 and ToCDXL make), played on the Amiga itself a frame at a time from the file, with no card or Cradle: 1 to 8 bitplanes (one after another, or each row's in turn), HAM6 and HAM8, each frame's own palette (handed out with the frame when it differs from the first's), and chunky RGB films shown in 256 colours (the 6x6x6 cube). The sound, mono or stereo, is played as 8-bit mono with each frame, at the rate in the header (else 11025 Hz); frames a second from the header, else from the sound's length. It replaces the system's `cdxl.datatype` and `CDXL` descriptor of the same names. |
+| `stream.datatype` | data (new) | our own (`stream/`) | The class for data that is not a picture or a sound: an object turns coded bytes into plain ones, read whole (`SDTA_Data`) or a piece at a time as they arrive (`SDTM_FEED`, `SDTM_TAKE`, `SDTM_END`), from a file, memory, a hook or what the program feeds it; `DTM_WRITE` (`DTWM_RAW`) saves the plain bytes. Its header is `include/datatypes/streamclass.h`; a decoder is a subclass that answers one method, `SDTM_CODEC`. The group, `GID_DATA`, is new. |
+| `gzip.datatype` | data | z.library (OpenZlib) | gzip (one member or several), zlib-wrapped deflate (HTTP's `deflate`) and raw deflate, told apart by their first bytes or named with `SDTA_Wrapper`. The inflate is z.library's, opened for each object: no zlib is linked in. Its descriptor, `GZip`, matches `1f 8b 08`. |
+| `brotli.datatype` | data | our own decoder (`brotli/brdecode.c`) | Brotli (RFC 7932), written from the RFC: streaming (input may come a byte at a time), integer only, no writable data. Its static dictionary and transforms are the RFC's (`brotli/mkbrdict.py` writes them from the RFC's text and checks the dictionary's SHA-256). Brotli has no signature: a program names the class (`Content-Encoding: br`), and the `Brotli` descriptor takes files named `.br`. |
 | `webm.datatype` | animation | libvpx 1.17.0 | WebM video, VP8 or VP9, decoded frame by frame as the animation plays. Frames are shown in 256 colours (a 6x6x6 colour cube with ordered dithering), so they play on any screen. Sound through `media.decode/1` when a card or Cradle offers it. |
 
 OpenBrowser decodes the pictures in web pages through datatypes, so with
@@ -80,7 +84,13 @@ Copy the files from `out/` (after building) to the same places on the Amiga:
 | `Classes/DataTypes/openvideo.datatype` | `SYS:Classes/DataTypes/` |
 | `Devs/DataTypes/MP4`, `MOV`, `MKV`, `AVI`, `WMV`, `MPEG-PS`, `MPEG-TS`, `FLV`, `APNG`, `APNG-Name`, `NetStream` | `DEVS:DataTypes/` |
 | `Classes/DataTypes/cdxl.datatype` | `SYS:Classes/DataTypes/` |
+| `Classes/DataTypes/stream.datatype`, `gzip.datatype`, `brotli.datatype` | `SYS:Classes/DataTypes/` |
+| `Devs/DataTypes/GZip`, `Brotli` | `DEVS:DataTypes/` |
 | `Devs/DataTypes/CDXL` | `DEVS:DataTypes/` |
+
+`gzip.datatype` needs `z.library` in
+`LIBS:` (OpenZlib, amigachrome-guest `libraries/openzlib`, or the Aminet
+z.library 53).
 
 `openpicture.datatype`, `opensound.datatype`, `opendoc.datatype` and
 `openvideo.datatype` also need `openservice.device` in `DEVS:` (OpenUp's
@@ -256,6 +266,37 @@ tests), modules from the wider world, `DTA_Repeat` and `DTA_Immediate`,
 the ladder over a paired Cradle on the LAN, AHI modes other than ACAHI's
 Host mix, and AHI on real hardware.
 
+### stream.datatype, gzip.datatype and brotli.datatype
+
+On x86 cores, 23 October 2026. `tests/test-stream.sh` makes 319 test files
+(`tests/make-stream.py`) and decodes each through the stream class's core
+(`stream/sdtcore.c`) four ways: whole, fed and taken in 64 KB pieces, fed
+and taken a byte at a time, and pulled through a hook three bytes at a
+time. gzip, zlib and raw deflate come from Python's own modules (every
+level, windows of 2^9 to 2^15, stored blocks, gzip's FEXTRA, FNAME,
+FCOMMENT and FHCRC, two members, trailing bytes) and inflate through
+OpenZlib's own core built for the host, as z.library would. Brotli comes
+from Google's encoder (Python's `brotli` 1.2.1: qualities 0 to 11, windows
+of 2^10 to 2^24, its text and font modes, flushed streams), from streams
+written bit by bit from the RFC (every word length with all 121
+transforms, simple prefix codes of every shape, uncompressed and metadata
+meta-blocks, every window size; Google's decoder must read them as
+expected too) and from small streams kept in `tests/brotli-vectors.txt`,
+so the test runs without the module. All 1276 decodes give the expected
+bytes, and the damaged and cut-short ones fail as they should. Then files
+cut short at every length and with bytes changed, 93,280 decodes
+under AddressSanitizer and UBSan: nothing read or written outside the
+buffers. The cores build as C99 with `-Wall -Wextra -Werror -pedantic`
+and hold no writable data.
+
+Built as 68040 code with OpenAmigaGCC 16.2.0 (no NDK headers to hand, so
+the cores only), the sizes are: `sdtcore.c` 1,192 bytes, `gzcore.c` 764,
+`brdecode.c` 7,184 and the dictionary and transforms 123,364 (all at
+`-Os`). Not yet built
+whole for the Amiga nor run on the bench; that an OS 3.2
+datatypes.library takes the new group, `GID_DATA`, is still to be checked
+there.
+
 ### opentga.datatype
 
 On x86 cores, 12 October 2026: `tests/test-tga.sh` makes 60 files with
@@ -359,7 +400,7 @@ test file is make-tga.py's), 8-bit screens, and the speed on a real 68k.
 
 ## Licence
 
-The datatype code (`build.sh`, `common/`, `include/`, `webp/`, `webm/`, `openpicture/`, `png/`, `tga/`, `opensound/`, `openmodule/`, `opendoc/`, `openvideo/`, `cdxl/`, `tests/`) is
+The datatype code (`build.sh`, `common/`, `include/`, `webp/`, `webm/`, `openpicture/`, `png/`, `tga/`, `stream/`, `gzip/`, `brotli/`, `opensound/`, `openmodule/`, `opendoc/`, `openvideo/`, `cdxl/`, `tests/`) is
 MIT, Copyright (c) 2026 AmigaChrome Team, as the rest of this repository.
 libwebp and libvpx keep their BSD licences and the WebM Project's patent
 grants (`../upstream/libwebp/`, `../upstream/libvpx/`); a patch to their

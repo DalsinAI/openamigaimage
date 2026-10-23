@@ -90,10 +90,15 @@ static BOOL openAll(struct Library *lib)
     GfxBase = (struct GfxBase *)OpenLibrary((CONST_STRPTR)"graphics.library", 39);
     UtilityBase = OpenLibrary((CONST_STRPTR)"utility.library", 39);
     DataTypesBase = OpenLibrary((CONST_STRPTR)"datatypes.library", 39);
-    strcpy(superName, "datatypes/");
-    strcat(superName, dt_superclass);
-    superBase = OpenLibrary((CONST_STRPTR)superName, dt_superversion);
-    if (!DOSBase || !IntuitionBase || !GfxBase || !UtilityBase || !DataTypesBase || !superBase)
+    /* datatypesclass, the root (stream.datatype's superclass), lives in
+     * datatypes.library itself; every other superclass is a library of its own. */
+    if (strcmp(dt_superclass, "datatypesclass") != 0) {
+        strcpy(superName, "datatypes/");
+        strcat(superName, dt_superclass);
+        if (!(superBase = OpenLibrary((CONST_STRPTR)superName, dt_superversion)))
+            return FALSE;
+    }
+    if (!DOSBase || !IntuitionBase || !GfxBase || !UtilityBase || !DataTypesBase)
         return FALSE;
     if (!dt_init())
         return FALSE;

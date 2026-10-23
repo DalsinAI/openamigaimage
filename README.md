@@ -1,7 +1,7 @@
 # openamigaimage
 
 zlib, libpng and libjpeg for AmigaOS 3.x on 68k, built as static link libraries for
-GCC programs, and the project's datatypes: `webp.datatype`, `webm.datatype`, `openpicture.datatype`, `opensound.datatype`, `openmodule.datatype` (music modules: MOD, MED, Oktalyzer, DigiBooster, XM, S3M, IT, played on the Amiga itself), `opendoc.datatype` and `openvideo.datatype`
+GCC programs, and the project's datatypes: `webp.datatype`, `webm.datatype`, `openpicture.datatype`, `opensound.datatype`, `openmodule.datatype` (music modules: MOD, MED, Oktalyzer, DigiBooster, XM, S3M, IT, played on the Amiga itself), `opendoc.datatype`, `openvideo.datatype`, and the data class `stream.datatype` with `gzip.datatype` and `brotli.datatype`
 (see [Datatypes](Datatypes/README.md)). Part of the [OpenAmiga](https://github.com/DalsinAI/openamiga)
 ports, made for [OpenBrowser](https://github.com/DalsinAI/openamigabrowser),
 the WebKit browser for AmigaOS 3.2.
