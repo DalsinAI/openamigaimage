@@ -27,7 +27,7 @@ is not yet checked (see Tested).
 | --- | --- | --- | --- |
 | `webp.datatype` | picture | libwebp 1.6.0 | Lossy, lossless and alpha WebP, through picture.datatype's 24-bit mode (32-bit with alpha). An animated WebP shows its first frame. |
 | `openpicture.datatype` | picture | the `media.decode/1` service | AVIF and HEIC/HEIF (iPhone photos), JPEG XL, camera RAW (Canon, Nikon, Sony, DNG and more), Photoshop PSD, GIMP XCF, OpenEXR, Radiance HDR, QOI, DDS, JPEG 2000, OpenRaster and Krita (their flattened picture), comic books (CBZ, the first page), SVG (drawn at its own size) and TrueType/OpenType fonts (a sample sheet), decoded on the services card or a paired Cradle and sent back as 32-bit ARGB, scaled down to fit `ENV:OpenImage/MaxSide` (default 4096). A sequence shows its first picture. |
-| `openpng.datatype` | picture | our own decoder (`png/pngdecode.c`) | PNG: every colour type and bit depth, transparency and Adam7 interlacing, decoded on the Amiga itself (no zlib, no libpng) and handed to picture.datatype as 32-bit ARGB, so the pixels read back as ARGB are the ones decoded, alpha included. A pixel read or write with no pixel array is refused: that is what `PDTM_READPIXELARRAY` sent with `DoDTMethodA()` instead of `DoMethodA()` arrives as, and picture.datatype would write the picture from address 0. Its descriptor, `OpenPNG`, matches the signature and the IHDR after it, a longer mask than the system's `PNG`, so it is tried first while the system's png.datatype stays installed. |
+| `openpng.datatype` | picture | our own decoder (`png/pngdecode.c`) | PNG: every colour type and bit depth, transparency and Adam7 interlacing, decoded on the Amiga itself (no zlib, no libpng) and handed to picture.datatype as 32-bit ARGB, so the pixels read back as ARGB are the ones decoded, alpha included. A pixel read or write with no pixel array is refused: that is what `PDTM_READPIXELARRAY` sent with `DoDTMethodA()` instead of `DoMethodA()` arrives as, and picture.datatype would write the picture from address 0. Its descriptor, `OpenPNG`, matches the signature and the IHDR after it, a longer mask than the system's `PNG`, so it is tried first while the system's png.datatype stays installed. PNG out too (47.4): `OIM_ENCODEPNG` (`include/datatypes/openimage.h`) encodes ARGB pixels, a program's own (canvas `toDataURL`) or the object's, to a PNG file in memory, and `DTM_WRITE` with `DTWM_RAW` writes the picture as PNG; the deflate and CRCs are z.library's (`png/pngencode.c`). |
 | `opentga.datatype` | picture | our own decoder (`tga/tgadecode.c`) | Targa (TGA) pictures, written from Truevision's TGA 2.0 specification: uncompressed and run-length encoded; colour-mapped (8 or 16-bit indexes, 15, 16, 24 or 32-bit colour maps), true-colour of 15, 16, 24 and 32 bits, and greyscale of 8 bits or 16 with alpha; rows from the bottom or the top, and right to left. Decoded on the Amiga itself and handed to picture.datatype as 32-bit ARGB, as openpng.datatype does. Alpha comes from a 32-bit pixel, a 16-bit pixel's top bit or a 16-bit grey's second byte when the header gives alpha bits; a TGA 2.0 extension area that says there is none wins, premultiplied alpha is undone, and an alpha channel that is 0 everywhere counts as none. A TGA has no signature, so its descriptor, `OpenTGA`, goes by the name (`.tga`, `.targa`, `.icb`, `.vda`, `.vst`, in any case) and is tried after every descriptor with a mask. |
 | `opensound.datatype` | sound | the `media.decode/1` service | FLAC, Ogg (Vorbis, Opus), AAC/M4A, ALAC, WMA and MP3; MIDI (played through FluidSynth on the Cradle), C64 SID tunes (the first three minutes, through sidplayfp) and XM, IT and S3M modules (libopenmpt), sent back as 16-bit PCM at a rate Paula plays (`ENV:OpenImage/SoundRate`, default 28000 Hz: 44.1 kHz comes as 22.05 kHz). 16-bit stereo with sound.datatype V44 or newer, else 8-bit mono. |
 | `openmodule.datatype` | sound | libxmp 4.7.3 | Music modules, played on the Amiga itself: ProTracker, NoiseTracker and SoundTracker MODs (M.K., M!K!, FLT4, FLT8, 2CHN to 32CH, and 15-instrument SoundTracker by its name), MED and OctaMED (MMD0 to MMD3, MED 2 to 4), Oktalyzer, DigiBooster and DigiBooster Pro, FastTracker 2 XM, Scream Tracker 3 S3M and Impulse Tracker IT (libxmp reads some 60 module formats in all; a descriptor for another is all it takes). Streamed by a player process of its own, so a song starts at once and never sits in memory whole: 16-bit stereo through AHI (`ahi.device` unit 0, at its own rate), else 8-bit stereo on two Paula channels. Mixed on a cores board core (AmigaChrome's, through `openmulticore.library`), else by `media.decode/1` on a services card or a paired Cradle, else on this CPU, and the datatype says which (`OIA_DecodedBy`, `include/datatypes/openimage.h`; `openmodule/DESIGN.md` sections 2 and 7). The module's title and length show; play, pause, stop, volume and repeat work as for a sound. |
@@ -88,7 +88,7 @@ Copy the files from `out/` (after building) to the same places on the Amiga:
 | `Devs/DataTypes/GZip`, `Brotli` | `DEVS:DataTypes/` |
 | `Devs/DataTypes/CDXL` | `DEVS:DataTypes/` |
 
-`gzip.datatype` needs `z.library` in
+`gzip.datatype`, and `openpng.datatype`'s PNG out, need `z.library` in
 `LIBS:` (OpenZlib, amigachrome-guest `libraries/openzlib`, or the Aminet
 z.library 53).
 
@@ -266,7 +266,7 @@ tests), modules from the wider world, `DTA_Repeat` and `DTA_Immediate`,
 the ladder over a paired Cradle on the LAN, AHI modes other than ACAHI's
 Host mix, and AHI on real hardware.
 
-### stream.datatype, gzip.datatype and brotli.datatype
+### stream.datatype, gzip.datatype, brotli.datatype and PNG out
 
 On x86 cores, 23 October 2026. `tests/test-stream.sh` makes 319 test files
 (`tests/make-stream.py`) and decodes each through the stream class's core
@@ -289,10 +289,16 @@ under AddressSanitizer and UBSan: nothing read or written outside the
 buffers. The cores build as C99 with `-Wall -Wextra -Werror -pedantic`
 and hold no writable data.
 
+`tests/test-pngenc.sh` encodes 51 pictures (opaque and with alpha,
+premultiplied, noise and flat, 1x1 to 1023x3 and 3x700, padded rows,
+levels 0, 1, 6 and 9) through `png/pngencode.c` and OpenZlib's deflate;
+openpng's own decoder, a reading of the chunks in Python (every CRC, the
+filters, Python's zlib) and Pillow 12 all read every pixel back.
+
 Built as 68040 code with OpenAmigaGCC 16.2.0 (no NDK headers to hand, so
 the cores only), the sizes are: `sdtcore.c` 1,192 bytes, `gzcore.c` 764,
 `brdecode.c` 7,184 and the dictionary and transforms 123,364 (all at
-`-Os`). Not yet built
+`-Os`); `pngencode.c` 2,996 at the PNG datatype's `-O2`. Not yet built
 whole for the Amiga nor run on the bench; that an OS 3.2
 datatypes.library takes the new group, `GID_DATA`, is still to be checked
 there.

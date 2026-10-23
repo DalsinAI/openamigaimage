@@ -1,6 +1,7 @@
 #!/bin/sh
 # openpng.datatype and its descriptor, DEVS:DataTypes/OpenPNG, for AmigaOS 3.x
-# (pngclass.c). Our own code only: no upstream tarballs. Built with the
+# (pngclass.c). Our own code only: no upstream tarballs. PNG out
+# (pngencode.c) deflates through z.library (OpenZlib) at run time. Built with the
 # os32-gcc16 compiler, as the other datatypes (../build.sh runs this too).
 # MIT, Copyright (c) 2026 AmigaChrome Team.
 #
@@ -21,12 +22,13 @@ SOFT="-specs=$HERE/../build/m68k-soft-m68040.specs"
 CFLAGS="-O2 -m68040 $SOFT -fomit-frame-pointer -fno-delete-null-pointer-checks -DNDEBUG -Wall -Wno-pointer-sign"
 rm -rf "$WORK"
 mkdir -p "$WORK" "$OUT/Classes/DataTypes" "$OUT/Devs/DataTypes"
-for f in common/dtstart.c common/dtlib.c png/pngdecode.c png/pngclass.c; do
-    (cd "$HERE" && $CC $CFLAGS -I"$HERE/common" -I"$HERE/png" -c "$f" -o "$WORK/$(basename "$f" .c).o")
+for f in common/dtstart.c common/dtlib.c common/zlibrary.c png/pngdecode.c png/pngencode.c png/pngclass.c; do
+    (cd "$HERE" && $CC $CFLAGS -I"$HERE/common" -I"$HERE/include" -I"$HERE/png" -c "$f" -o "$WORK/$(basename "$f" .c).o")
 done
 # dtstart.o first, so the library's first code is a safe return.
 $CC -nostartfiles -m68040 $SOFT -o "$OUT/Classes/DataTypes/openpng.datatype" \
-    "$WORK/dtstart.o" "$WORK/dtlib.o" "$WORK/pngdecode.o" "$WORK/pngclass.o" -lamiga \
+    "$WORK/dtstart.o" "$WORK/dtlib.o" "$WORK/zlibrary.o" "$WORK/pngdecode.o" "$WORK/pngencode.o" \
+    "$WORK/pngclass.o" -lamiga \
     -Wl,-Map="$WORK/openpng.datatype.map"
 echo "openpng.datatype: $(wc -c < "$OUT/Classes/DataTypes/openpng.datatype") bytes"
 # The signature and the IHDR chunk that must come next (length 13): sixteen

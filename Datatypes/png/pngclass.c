@@ -15,6 +15,12 @@
  * RAM. OpenBench 0.1 and a test tool did that on AmigaChrome's Instance-32
  * (10 and 11 October 2026); this class answers FALSE instead.
  *
+ * PNG out (47.4): OIM_ENCODEPNG (datatypes/openimage.h) encodes ARGB pixels,
+ * the program's or the object's own, to a PNG file in memory, and DTM_WRITE
+ * with DTWM_RAW writes the picture as PNG to a file (pngencode.c, deflate
+ * by z.library, opened for each call). An object made with no source
+ * (DTST_RAM) loads nothing, so a program can make one just to encode with.
+ *
  * DEVS:DataTypes/OpenPNG (build.sh) matches the PNG signature and the IHDR
  * that must follow it: a longer mask than the system's PNG descriptor, which
  * AmigaOS 3.2.3's datatypes.library tries first, so this class takes PNGs
@@ -33,16 +39,20 @@
 #include <proto/dos.h>
 #include <proto/intuition.h>
 #include <proto/datatypes.h>
+#include <proto/utility.h>
 #include <clib/alib_protos.h>
 
 #include "dtlib.h"
+#include <datatypes/openimage.h>
 #include "pngdecode.h"
+#include "pngencode.h"
+#include "zlibrary.h"
 
 const char LibName[] = "openpng.datatype";
-const char LibIdString[] = "openpng.datatype 47.3 (11.10.2026) AmigaChrome Team";
+const char LibIdString[] = "openpng.datatype 47.4 (23.10.2026) AmigaChrome Team";
 const UWORD LibVersion = 47;
-const UWORD LibRevision = 3;
-static const char version[] __attribute__((used)) = "$VER: openpng.datatype 47.3 (11.10.2026)";
+const UWORD LibRevision = 4;
+static const char version[] __attribute__((used)) = "$VER: openpng.datatype 47.4 (23.10.2026)";
 
 const char dt_superclass[] = "picture.datatype";
 const UWORD dt_superversion = 43;
@@ -132,11 +142,101 @@ static BOOL loadPNG(Class *cl, Object *o)
     return ok;
 }
 
+static void *e_alloc(struct pnge_env *e, ULONG n)
+{
+    (void)e;
+    return big_alloc(n);
+}
+
+static void e_free(struct pnge_env *e, void *p)
+{
+    (void)e;
+    FreeVec(p);
+}
+
+/* OIM_ENCODEPNG's work: the pixels given, or the object's own read back as
+ * ARGB. 0, or an IoErr() code. */
+static LONG encodePNG(Class *cl, Object *o, struct oiEncodePNG *m)
+{
+    struct pnge_env env;
+    struct Library *zbase;
+    const UBYTE *px = m->oiep_Pixels;
+    ULONG w = m->oiep_Width, h = m->oiep_Height, stride = m->oiep_Stride;
+    UBYTE *own = NULL;
+    LONG err;
+
+    m->oiep_Data = NULL;
+    m->oiep_Size = 0;
+    if (!px) {
+        struct BitMapHeader *bmh = NULL;
+        if (GetDTAttrs(o, PDTA_BitMapHeader, (ULONG)&bmh, TAG_DONE) < 1 || !bmh
+            || !bmh->bmh_Width || !bmh->bmh_Height)
+            return ERROR_OBJECT_WRONG_TYPE;
+        w = bmh->bmh_Width;
+        h = bmh->bmh_Height;
+        stride = w * 4;
+        if (!(own = big_alloc(stride * h)))
+            return ERROR_NO_FREE_STORE;
+        if (!DoSuperMethod(cl, o, PDTM_READPIXELARRAY, (ULONG)own, PBPAFMT_ARGB, stride, 0, 0, w, h)) {
+            FreeVec(own);
+            return ERROR_OBJECT_WRONG_TYPE;
+        }
+        px = own;
+    }
+    if (!(zbase = OpenLibrary((CONST_STRPTR)ZL_NAME, ZL_VERSION))) {
+        if (own)
+            FreeVec(own);
+        return ERROR_OBJECT_NOT_FOUND;
+    }
+    env.alloc = e_alloc;
+    env.free = e_free;
+    err = png_encode(zbase, &env, px, w, h, stride, m->oiep_Flags, m->oiep_Level, &m->oiep_Data, &m->oiep_Size);
+    CloseLibrary(zbase);
+    if (own)
+        FreeVec(own);
+    return err;
+}
+
 ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
 {
     switch (msg->MethodID) {
+    case OIM_ENCODEPNG: {
+        struct oiEncodePNG *m = (struct oiEncodePNG *)msg;
+        if ((m->oiep_Error = encodePNG(cl, o, m))) {
+            SetIoErr(m->oiep_Error);
+            return FALSE;
+        }
+        return TRUE;
+    }
+    case DTM_WRITE: {
+        struct dtWrite *w = (struct dtWrite *)msg;
+        struct oiEncodePNG m;
+        LONG err;
+        if (w->dtw_Mode != DTWM_RAW)
+            return DoSuperMethodA(cl, o, msg);   /* IFF: picture.datatype's ILBM */
+        m.MethodID = OIM_ENCODEPNG;
+        m.oiep_GInfo = NULL;
+        m.oiep_Pixels = NULL;
+        m.oiep_Width = m.oiep_Height = m.oiep_Stride = 0;
+        m.oiep_Flags = 0;
+        m.oiep_Level = -1;
+        if (!w->dtw_FileHandle)
+            err = ERROR_REQUIRED_ARG_MISSING;
+        else if (!(err = encodePNG(cl, o, &m))) {
+            if (Write(w->dtw_FileHandle, m.oiep_Data, m.oiep_Size) != (LONG)m.oiep_Size)
+                err = IoErr();
+            FreeVec(m.oiep_Data);
+        }
+        if (err) {
+            SetIoErr(err);
+            return FALSE;
+        }
+        return TRUE;
+    }
     case OM_NEW: {
         Object *obj = (Object *)DoSuperMethodA(cl, o, msg);
+        if (obj && GetTagData(DTA_SourceType, DTST_FILE, ((struct opSet *)msg)->ops_AttrList) == DTST_RAM)
+            return (ULONG)obj;         /* no source: a picture to write into, or to encode with */
         if (obj && !loadPNG(cl, obj)) {
             LONG err = IoErr();
             CoerceMethod(cl, obj, OM_DISPOSE);
