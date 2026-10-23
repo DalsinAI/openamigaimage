@@ -220,6 +220,11 @@ ULONG dt_dispatch(Class *cl, Object *o, Msg msg)
         m.oiep_Width = m.oiep_Height = m.oiep_Stride = 0;
         m.oiep_Flags = 0;
         m.oiep_Level = -1;
+        {
+            ULONG alpha = TRUE;        /* a picture without alpha is written as RGB */
+            if (GetDTAttrs(o, PDTA_AlphaChannel, (ULONG)&alpha, TAG_DONE) == 1 && !alpha)
+                m.oiep_Flags = OIEF_OPAQUE;
+        }
         if (!w->dtw_FileHandle)
             err = ERROR_REQUIRED_ARG_MISSING;
         else if (!(err = encodePNG(cl, o, &m))) {
